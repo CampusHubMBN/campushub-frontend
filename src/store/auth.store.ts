@@ -1,7 +1,7 @@
 // src/store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '@/types/api';
+import { User, UserInfo } from '@/types/api';
 
 interface AuthState {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthState {
   setAuth: (user: User) => void; // plus de token usage session
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
+  updateUserInfo: (info: Partial<UserInfo>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -36,12 +37,26 @@ export const useAuthStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
+
+      // Update user info (profil)
+      updateUserInfo: (infoUpdates) =>
+        set((state) => {
+          if (!state.user) return state;
+          
+          return {
+            user: {
+              ...state.user,
+              info: state.user.info
+                ? { ...state.user.info, ...infoUpdates }
+                : undefined,
+            },
+          };
+        }),
     }),
     {
-      name: 'auth-storage', // Clé dans localStorage
+      name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
-        // token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
     }

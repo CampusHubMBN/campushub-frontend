@@ -1,4 +1,6 @@
 // src/app/page.tsx
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -10,9 +12,9 @@ export default function Home() {
           La plateforme qui connecte étudiants, alumni et opportunités
         </p>
         <div className="flex gap-4 justify-center">
-          <button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+          <Link href={'/login'} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
             Commencer
-          </button>
+          </Link>
           <button className="px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
             En savoir plus
           </button>

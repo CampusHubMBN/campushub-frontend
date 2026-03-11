@@ -1,19 +1,76 @@
-// User Types
-export type UserRole = 'student' | 'alumni' | 'bde_member' | 'pedagogical' | 'company' | 'admin';
+// src/types/api.ts
+// ========== USER TYPES ==========
 
+export type UserRole = 
+  | 'student' 
+  | 'alumni' 
+  | 'bde_member' 
+  | 'pedagogical' 
+  | 'company' 
+  | 'admin';
+
+export type UserLevel = 
+  | 'beginner' 
+  | 'active_member' 
+  | 'contributor' 
+  | 'expert' 
+  | 'vip';
+
+// ✅ User (minimaliste - auth seulement)
 export interface User {
-  id: number;
+  id: string; // UUID
   name: string;
   email: string;
   role: UserRole;
-  avatar_url?: string | null;
-  bio?: string | null;
-  phone?: string | null;
-  linkedin_url?: string | null;
-  github_url?: string | null;
-  website_url?: string | null;
+  email_verified_at: string | null;
+  last_login_at: string | null;
   created_at: string;
   updated_at: string;
+  
+  // ✅ Relation eager loaded (optionnelle)
+  info?: UserInfo;
+}
+
+// ✅ UserInfo (profil complet)
+export interface UserInfo {
+  id: string;
+  user_id: string;
+  
+  // Profile
+  avatar_url: string | null;
+  bio: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  website_url: string | null;
+  
+  // Professional
+  cv_url: string | null;
+  skills: string[];
+  languages: Language[];
+  
+  // Academic
+  program: string | null;
+  year: number | null;
+  graduation_year: number | null;
+  specialization: string | null;
+  campus: string | null;
+  
+  // Company reference
+  company_id: string | null;
+  
+  // Gamification
+  reputation_points: number;
+  level: UserLevel;
+  profile_completion: number;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Language {
+  language: string;
+  level: string;
 }
 
 // auth types
@@ -21,6 +78,7 @@ export interface User {
 export interface LoginRequest {
     email: string;
     password: string;
+    remember?: boolean;
 }
 
 export interface RegisterRequest {
@@ -28,11 +86,13 @@ export interface RegisterRequest {
     email: string;
     password: string;
     password_confirmation: string;
+    invitation_token: string;
 }
 
+
 export interface AuthResponse {
-    user: User;
-    // token: string;
+  message: string;
+  user: User; // User avec info déjà chargée
 }
 
 // API Response Wrapper
@@ -67,17 +127,34 @@ export interface PaginatedResponse<T> {
   };
 }
 
+// ========== INVITATION TYPES ==========
+
 export interface Invitation {
   id: string;
   email: string;
-  role: UserRole;
+  role: Exclude<UserRole, 'admin'>; // Pas de role admin pour invitations
   token: string;
+  invitation_url: string;
   expires_at: string;
   used: boolean;
   used_at: string | null;
-  invited_by: number | null;
+  is_expired: boolean;
+  is_valid: boolean;
+  invited_by?: {
+    id: string;
+    name: string;
+    email: string;
+  };
   created_at: string;
-  updated_at: string;
+}
+
+export interface CreateInvitationRequest {
+  email: string;
+  role: Exclude<UserRole, 'admin'>;
+}
+
+export interface VerifyInvitationRequest {
+  token: string;
 }
 
 export interface VerifyInvitationResponse {
@@ -85,10 +162,5 @@ export interface VerifyInvitationResponse {
   role: UserRole;
 }
 
-export interface RegisterWithInvitationRequest {
-  name: string;
-  email: string;
-  password: string;
-  password_confirmation: string;
-  invitation_token: string;
-}
+// Alias pour compatibilité
+export type RegisterWithInvitationRequest = RegisterRequest;
