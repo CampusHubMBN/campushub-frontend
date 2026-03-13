@@ -1,7 +1,7 @@
 // src/app/(protected)/profile/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/services/api/users.api';
 import { toast } from 'sonner';
@@ -27,13 +27,22 @@ import {
   Save,
   X,
 } from 'lucide-react';
+import { AvatarSkeleton } from '@/components/layout/avatar-skeleton';
 
 export default function ProfilePage() {
-  const { user, updateUserInfo } = useAuthStore();
+  const { user, setAuth, updateUserInfo } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const [mounted, setMounted] = useState(false);
+
+  // ✅ Pattern: Attendre que component soit monté côté client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
 
   const [formData, setFormData] = useState({
     bio: user?.info?.bio || '',
@@ -46,6 +55,28 @@ export default function ProfilePage() {
     year: user?.info?.year?.toString() || '',
     campus: user?.info?.campus || '',
   });
+
+  // Sync formData when user changes (après update)
+  useEffect(() => {
+    if (user?.info && !isEditing) {
+      setFormData({
+        bio: user.info.bio || '',
+        phone: user.info.phone || '',
+        linkedin_url: user.info.linkedin_url || '',
+        github_url: user.info.github_url || '',
+        website_url: user.info.website_url || '',
+        skills: user.info.skills?.join(', ') || '',
+        program: user.info.program || '',
+        year: user.info.year?.toString() || '',
+        campus: user.info.campus || '',
+      });
+    }
+  }, [user?.info, isEditing]);
+
+  // Pendant SSR et avant hydration client
+  if (!mounted) {
+    return <AvatarSkeleton />
+  }
 
   if (!user) return null;
 
@@ -68,8 +99,12 @@ export default function ProfilePage() {
     try {
       // Upload avatar si changé
       let avatar_url = user.info?.avatar_url;
+
+      console.log('User AVANT update:', user);
+
       if (avatarFile) {
         const uploadResult = await usersApi.uploadAvatar(user.id, avatarFile);
+        console.log('upload resulat:', uploadResult);
         avatar_url = uploadResult.avatar_url;
       }
 
@@ -85,10 +120,14 @@ export default function ProfilePage() {
       };
 
       const updatedUser = await usersApi.updateUserInfo(user.id, updateData);
-
+      console.log('User APRÈS update info:', updatedUser);
       // Update store
+      console.log('updated user', updatedUser);
       if (updatedUser.info) {
         updateUserInfo(updatedUser.info);
+        // update user complet
+        // setAuth(updatedUser);
+        console.log('Profil mis à jour avec succès');
       }
 
       toast.success('Profil mis à jour avec succès !');

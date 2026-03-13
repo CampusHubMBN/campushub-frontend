@@ -23,6 +23,7 @@ export const usersApi = {
   // Get user by ID
   getUser: async (id: string): Promise<User> => {
     const response = await api.get<User>(`/users/${id}`);
+    console.log('res dta', response.data)
     return response.data;
   },
 
@@ -31,8 +32,8 @@ export const usersApi = {
     userId: string,
     data: UpdateUserInfoRequest
   ): Promise<User> => {
-    const response = await api.patch<User>(`/users/${userId}`, data);
-    return response.data;
+    const response = await api.patch<{ data: User }>(`/users/${userId}`, data);
+    return response.data.data;
   },
 
   // Upload avatar

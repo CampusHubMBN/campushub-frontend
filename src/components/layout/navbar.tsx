@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Briefcase, BookOpen, FileText } from 'lucide-react';
+import { Briefcase, BookOpen, FileText, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
 
@@ -22,6 +22,11 @@ const navItems = [
     label: 'Blog',
     href: '/blog',
     icon: BookOpen,
+  },
+  {
+    label: 'Evênements',
+    href: '/events',
+    icon: CalendarClock,
   },
 ];
 

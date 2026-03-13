@@ -32,7 +32,8 @@ export const authApi = {
 
   // Get current user
   me: async (): Promise<User> => {
-    const response = await api.get<User>('/me');
-    return response.data;
+    const response = await api.get<{ data: User }>('/me');
+    console.log('res dta', response.data)
+    return response.data.data;
   },
 };

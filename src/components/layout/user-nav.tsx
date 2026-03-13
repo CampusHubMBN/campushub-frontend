@@ -15,13 +15,19 @@ import {
 import { User, Settings, LogOut, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
+import { AvatarSkeleton } from './avatar-skeleton';
+import { useEffect, useState } from 'react';
 
 export function UserNav() {
   const { user, logout } = useAuthStore();
+  // const hydrated = useHydration(); // attendr l'hydratation
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
-  console.log('🔍 UserNav render - user:', user ? 'présent' : 'null');
-  console.log('🔍 UserNav render - user.name:', user?.name);
+  // ✅ Pattern: Attendre que component soit monté côté client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -34,11 +40,37 @@ export function UserNav() {
     }
   };
 
-// ✅ Protected layout garantit que user existe
-  // Mais garde un guard défensif
+  // Pendant SSR et avant hydration client
+  if (!mounted) {
+    return <AvatarSkeleton />
+  }
+
+   // Pendant hydration, afficher loader
+  // if (!hydrated) {
+  //   <AvatarSkeleton />
+  // }
+
+   // Pendant hydration
+  // if (!_hasHydrated) {
+  //   return <AvatarSkeleton />;
+  // }
+
+  // console.log('🔍 UserNav - hydrated:', hydrated);
+  // console.log('🔍 UserNav - user:', user);
+  // console.log('🔍 UserNav - user?.name:', user?.name);
+
+  // if (!hydrated) {
+  //   console.log('⏳ Waiting for hydration...');
+  //   return <AvatarSkeleton />;
+  // }
+
+
+  // après l'hydratation si pas de user
   if (!user || !user.name) {
     return null;
   }
+  
+  console.log('✅ User ready:', user.name);
 
   const initials = user.name
     .split(' ')
@@ -47,6 +79,16 @@ export function UserNav() {
     .toUpperCase()
     .slice(0, 2);
 
+  // Get avatar URL
+  const getAvatarUrl = () => {
+    if (user.info?.avatar_url) {
+      if (user.info.avatar_url.startsWith('http')) {
+        return user.info.avatar_url;
+      }
+      return `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${user.info.avatar_url}`;
+    }
+    return undefined;
+  };
 
   return (
     <DropdownMenu>

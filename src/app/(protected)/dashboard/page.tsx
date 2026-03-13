@@ -3,12 +3,44 @@
 
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AvatarSkeleton } from '@/components/layout/avatar-skeleton';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  // const hydrated = useHydration();
+  const [mounted, setMounted] = useState(false);
 
-  console.log('User', user);
+  // Pattern: Attendre que component soit monté côté client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  console.log('User from zust store', user);
+
+   // Pendant hydration
+  // if (!hydrated) {
+  //   return (
+  //     <div className="flex items-center justify-center h-screen">
+  //       <Loader2 className="h-10 w-10 animate-spin text-campus-blue" />
+  //     </div>
+  //   );
+  // }
+
+  // Pendant SSR et avant hydration client
+  if (!mounted) {
+    return <AvatarSkeleton />
+  }
+
+  // Après hydration
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p>Aucun utilisateur connecté</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
