@@ -3,9 +3,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Briefcase, BookOpen, FileText, CalendarClock } from 'lucide-react';
+import { Briefcase, BookOpen, FileText, CalendarClock, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
+import { useAuthStore } from '@/store/auth.store';
+import { useMounted } from '@/hooks/use-mounted';
 
 const navItems = [
   {
@@ -31,16 +33,24 @@ const navItems = [
 ];
 
 export function Navbar() {
+  const { user } = useAuthStore();
+  const mounted = useMounted();
   const pathname = usePathname();
+
+  const isActive = (path: string) => pathname.startsWith(path);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center space-x-2">
+          <Link
+            href={user ? '/dashboard': 'jobs'}
+            className="flex items-center space-x-2"
+          >
             <div className="h-8 w-8 rounded-lg bg-campus-blue flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
+              {/* <span className="text-white font-bold text-lg">C</span> */}
+              <Sparkles className="h-6 w-6 text-white" />
             </div>
             <span className="font-bold text-xl hidden sm:inline">
               CampusHub
@@ -52,7 +62,7 @@ export function Navbar() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname.startsWith(item.href);
-              
+
               return (
                 <Link
                   key={item.href}
@@ -91,7 +101,7 @@ function MobileNav() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);
-          
+
           return (
             <Link
               key={item.href}
@@ -106,7 +116,7 @@ function MobileNav() {
             </Link>
           );
         })}
-        
+
         {/* Dashboard sur mobile */}
         <Link
           href="/dashboard"

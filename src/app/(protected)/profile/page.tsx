@@ -1,7 +1,7 @@
 // src/app/(protected)/profile/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/services/api/users.api';
 import { toast } from 'sonner';
@@ -26,8 +26,12 @@ import {
   Upload,
   Save,
   X,
+  Download,
+  Trash2,
+  CheckCircle2,
 } from 'lucide-react';
 import { AvatarSkeleton } from '@/components/layout/avatar-skeleton';
+import { storageUrl } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { user, setAuth, updateUserInfo } = useAuthStore();
@@ -38,7 +42,57 @@ export default function ProfilePage() {
 
   const [mounted, setMounted] = useState(false);
 
-  // ✅ Pattern: Attendre que component soit monté côté client
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [cvLoading, setCvLoading] = useState(false);
+  const [cvDeleting, setCvDeleting] = useState(false);
+  const cvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Seuls les fichiers PDF sont acceptés');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Le fichier ne doit pas dépasser 5 Mo');
+      return;
+    }
+    setCvFile(file);
+  };
+
+  const handleCvUpload = async () => {
+    if (!cvFile || !user) return;
+    setCvLoading(true);
+    try {
+      const result = await usersApi.uploadCv(user.id, cvFile);
+      updateUserInfo({ cv_url: result.cv_url, profile_completion: result.profile_completion });
+      toast.success('CV uploadé avec succès !');
+      setCvFile(null);
+      if (cvInputRef.current) cvInputRef.current.value = '';
+    } catch (error: any) {
+      console.log('Error', error.response?.data?.message);
+      toast.error(error.response?.data?.message || "Erreur lors de l'upload");
+    } finally {
+      setCvLoading(false);
+    }
+  };
+
+  const handleCvDelete = async () => {
+    if (!user || !window.confirm('Supprimer votre CV ?')) return;
+    setCvDeleting(true);
+    try {
+      const result = await usersApi.deleteCv(user.id);
+      updateUserInfo({ cv_url: null, profile_completion: result.profile_completion });
+      toast.success('CV supprimé');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+    } finally {
+      setCvDeleting(false);
+    }
+  };
+
+  // Pattern: Attendre que component soit monté côté client
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -184,7 +238,7 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Profile Header Card */}
-        <Card>
+        <Card className="border-campus-gray-300 shadow-sm">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
               {/* Avatar */}
@@ -261,7 +315,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* About Section */}
-        <Card>
+        <Card className="border-campus-gray-300 shadow-sm">
           <CardHeader>
             <CardTitle>À propos</CardTitle>
           </CardHeader>
@@ -289,7 +343,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* Contact & Links */}
-        <Card>
+        <Card className="border-campus-gray-300 shadow-sm">
           <CardHeader>
             <CardTitle>Contact & Liens</CardTitle>
           </CardHeader>
@@ -417,7 +471,7 @@ export default function ProfilePage() {
 
         {/* Academic Info (students/alumni only) */}
         {(user.role === 'student' || user.role === 'alumni') && (
-          <Card>
+          <Card className="border-campus-gray-300 shadow-sm">
             <CardHeader>
               <CardTitle>Formation</CardTitle>
             </CardHeader>
@@ -491,7 +545,7 @@ export default function ProfilePage() {
         )}
 
         {/* Skills */}
-        <Card>
+        <Card className="border-campus-gray-300 shadow-sm">
           <CardHeader>
             <CardTitle>Compétences</CardTitle>
           </CardHeader>
@@ -524,6 +578,121 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Remplacer le commentaire CV section  */}
+        <Card className="border-campus-gray-300 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-campus-gray-900">
+              <FileText className="h-5 w-5 text-campus-blue" />
+              Curriculum Vitae
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='space-y-4'>
+
+            {user.info?.cv_url ? (
+            // ── CV existant ──
+            <div className="flex items-center gap-4 p-4 bg-campus-blue-50 rounded-lg border border-campus-blue-100">
+              <div className="h-10 w-10 rounded-lg bg-campus-blue flex items-center justify-center flex-shrink-0">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-campus-blue-800">CV actuel</p>
+                <p className="text-xs text-campus-blue-600 truncate">{user.info.cv_url.split('/').pop()}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  // href={user.info.cv_url}
+                  href={storageUrl(user.info.cv_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-campus-blue border border-campus-blue-200 rounded-lg hover:bg-campus-blue-100 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Voir
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCvDelete}
+                  disabled={cvDeleting}
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {cvDeleting
+                    ? <span className="h-3.5 w-3.5 animate-spin border-2 border-red-300 border-t-red-600 rounded-full" />
+                    : <Trash2 className="h-3.5 w-3.5" />
+                  }
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ) : (
+            // ── Pas de CV ──
+            <div className="flex items-center gap-3 p-4 bg-campus-gray-50 rounded-lg border border-campus-gray-200">
+              <div className="h-10 w-10 rounded-lg bg-campus-gray-200 flex items-center justify-center flex-shrink-0">
+                <FileText className="h-5 w-5 text-campus-gray-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-campus-gray-700">Aucun CV renseigné</p>
+                <p className="text-xs text-campus-gray-400">Uploadez votre CV pour faciliter vos candidatures</p>
+              </div>
+            </div>
+          )}
+
+            {/* // Zone upload (toujours visible pour remplacer ou ajouter)  */}
+            <div>
+              {cvFile ? (
+                // Fichier sélectionné — confirmation avant upload
+                <div className="flex items-center gap-3 p-3 bg-campus-blue-50 rounded-lg border border-campus-blue-100">
+                  <CheckCircle2 className="h-5 w-5 text-campus-blue flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-campus-blue-800 truncate">{cvFile.name}</p>
+                    <p className="text-xs text-campus-blue-500">{(cvFile.size / 1024 / 1024).toFixed(2)} Mo</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setCvFile(null); if (cvInputRef.current) cvInputRef.current.value = ''; }}
+                      className="h-7 w-7 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCvUpload}
+                      disabled={cvLoading}
+                      className="h-7 px-3 flex items-center gap-1.5 text-xs font-medium bg-campus-blue text-white rounded-lg hover:bg-campus-blue-600 transition-colors disabled:opacity-50"
+                    >
+                      {cvLoading
+                        ? <span className="h-3.5 w-3.5 animate-spin border-2 border-white/30 border-t-white rounded-full" />
+                        : <Upload className="h-3.5 w-3.5" />
+                      }
+                      {cvLoading ? 'Upload...' : user.info?.cv_url ? 'Remplacer' : 'Uploader'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Zone drop / bouton select
+                <div
+                  onClick={() => cvInputRef.current?.click()}
+                  className="border-2 border-dashed border-campus-gray-300 rounded-lg p-5 text-center cursor-pointer hover:border-campus-blue hover:bg-campus-blue-50 transition-colors"
+                >
+                  <Upload className="h-6 w-6 text-campus-gray-400 mx-auto mb-1.5" />
+                  <p className="text-sm text-campus-gray-600 mb-0.5">
+                    {user.info?.cv_url ? 'Cliquez pour remplacer votre CV' : 'Cliquez pour uploader votre CV'}
+                  </p>
+                  <p className="text-xs text-campus-gray-400">PDF uniquement · Max 5 Mo</p>
+                </div>
+              )}
+              <input
+                ref={cvInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handleCvChange}
+              />
+            </div>
+
           </CardContent>
         </Card>
 

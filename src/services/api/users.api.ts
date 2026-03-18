@@ -21,10 +21,17 @@ export interface UpdateUserInfoRequest {
 
 export const usersApi = {
   // Get user by ID
-  getUser: async (id: string): Promise<User> => {
-    const response = await api.get<User>(`/users/${id}`);
-    console.log('res dta', response.data)
-    return response.data;
+  getUser: async (id: string) => {
+    const response = await api.get(`/users/${id}`);
+    // console.log('res dta', response.data)
+    return {
+      // Données utilisateur (UserResource)
+      ...response.data.data,
+      // Champs additionnels
+      articles:       response.data.articles       ?? [],
+      articles_count: response.data.articles_count ?? 0,
+      is_own_profile: response.data.is_own_profile ?? false,
+    };
   },
 
   // Update user info
@@ -52,5 +59,28 @@ export const usersApi = {
     );
 
     return response.data;
+  },
+
+  // Upload CV (PDF)
+  uploadCv: async (userId: string, file: File): Promise<{
+    cv_url: string;
+    profile_completion: number;
+  }> => {
+    const formData = new FormData();
+    formData.append('cv', file);
+
+    const response = await api.post(`/users/${userId}/cv`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data.data;
+  },
+
+  // Supprimer CV
+  deleteCv: async (userId: string): Promise<{
+    cv_url: null;
+    profile_completion: number;
+  }> => {
+    const response = await api.delete(`/users/${userId}/cv`);
+    return response.data.data;
   },
 };
