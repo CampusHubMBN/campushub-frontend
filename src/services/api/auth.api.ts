@@ -1,6 +1,9 @@
 // src/services/api/auth.api.ts
 import api from '@/lib/axios';
-import { AuthResponse, LoginRequest, RegisterRequest, RegisterWithInvitationRequest, User } from '@/types/api';
+import {
+  AuthResponse, LoginRequest, RegisterRequest,
+  RegisterWithInvitationRequest, User
+} from '@/types/api';
 import axios from 'axios';
 
 // Récupérer le CSRFcookie
@@ -20,8 +23,9 @@ export const authApi = {
 
   // Login
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    await getCsrfToken(); // ✅ Obtenir CSRF token d'abord
+    await getCsrfToken(); // Obtenir CSRF token d'abord
     const response = await api.post<AuthResponse>('/login', data);
+    // console.log(response)
     return response.data;
   },
 

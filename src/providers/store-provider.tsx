@@ -9,7 +9,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!initialized.current) {
-      // ✅ Hydrate manuellement côté client
+      // Hydrate manuellement côté client
       useAuthStore.persist.rehydrate();
       initialized.current = true;
     }

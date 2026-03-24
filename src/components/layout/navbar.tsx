@@ -3,9 +3,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Briefcase, BookOpen, FileText, CalendarClock, Sparkles } from 'lucide-react';
+import { Briefcase, BookOpen, FileText, CalendarClock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
+import { NotificationBell } from './notification-bell';
 import { useAuthStore } from '@/store/auth.store';
 import { useMounted } from '@/hooks/use-mounted';
 
@@ -40,19 +41,18 @@ export function Navbar() {
   const isActive = (path: string) => pathname.startsWith(path);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white">
+    <header className="sticky top-0 z-50 w-full border-b border-blue-100/60 bg-gradient-to-r from-white via-blue-50/40 to-indigo-50/30 backdrop-blur-sm shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link
             href={user ? '/dashboard': 'jobs'}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2.5"
           >
-            <div className="h-8 w-8 rounded-lg bg-campus-blue flex items-center justify-center">
-              {/* <span className="text-white font-bold text-lg">C</span> */}
-              <Sparkles className="h-6 w-6 text-white" />
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-campus-blue to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200">
+              <span className="text-white font-black text-lg tracking-tight leading-none">C</span>
             </div>
-            <span className="font-bold text-xl hidden sm:inline">
+            <span className="font-bold text-xl hidden sm:inline bg-gradient-to-r from-campus-blue to-indigo-600 bg-clip-text text-transparent">
               CampusHub
             </span>
           </Link>
@@ -79,10 +79,27 @@ export function Navbar() {
                 </Link>
               );
             })}
+            {mounted && (user?.role === 'company' || user?.role === 'admin') && (
+              <Link
+                href="/recruiter"
+                className={cn(
+                  'flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors',
+                  pathname.startsWith('/recruiter')
+                    ? 'bg-campus-blue text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
+                )}
+              >
+                <Users className="h-5 w-5" />
+                <span className="font-medium">Recrutement</span>
+              </Link>
+            )}
           </nav>
 
-          {/* User Menu */}
-          <UserNav />
+          {/* Notifications + User Menu */}
+          <div className="flex items-center gap-1">
+            {mounted && user && <NotificationBell />}
+            <UserNav />
+          </div>
         </div>
       </div>
 
@@ -94,6 +111,8 @@ export function Navbar() {
 
 function MobileNav() {
   const pathname = usePathname();
+  const { user } = useAuthStore();
+  const mounted = useMounted();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t">
@@ -130,6 +149,18 @@ function MobileNav() {
           </svg>
           <span className="text-xs font-medium">Accueil</span>
         </Link>
+        {mounted && (user?.role === 'company' || user?.role === 'admin') && (
+          <Link
+            href="/recruiter"
+            className={cn(
+              'flex flex-col items-center justify-center flex-1 h-full space-y-1',
+              pathname.startsWith('/recruiter') ? 'text-campus-blue' : 'text-gray-600'
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <span className="text-xs font-medium">Recrutement</span>
+          </Link>
+        )}
       </div>
     </nav>
   );

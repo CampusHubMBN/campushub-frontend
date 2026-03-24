@@ -5,12 +5,13 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authApi } from '@/services/api/auth.api';
 import { Navbar } from '@/components/layout/navbar';
+import { NotificationInitializer } from '@/components/layout/notification-initializer';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { StoreProvider } from '@/providers/store-provider';
 
  // Routes publiques (pas besoin d'auth)
-const PUBLIC_ROUTES = ['/jobs', '/articles', '/blog'];
+const PUBLIC_ROUTES = ['/jobs', '/articles', '/blog', '/events', '/companies'];
 
 // public route check helper
 const isPublicRoute = (pathname: string) => {
@@ -36,8 +37,11 @@ export default function ProtectedLayout({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Fetch user si pas déjà chargé
-        if (!user) {
+        // Toujours vérifier avec le serveur, pas seulement si !user
+        const userData = await authApi.me();
+        console.log('UserDate', userData);
+        // Si le user retourné est différent, mettre à jour le store
+        if (!user || user.id !== userData.id) {
           const userData = await authApi.me();
           setAuth(userData);
         }
@@ -88,8 +92,9 @@ export default function ProtectedLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <StoreProvider>
+        <NotificationInitializer />
         <Navbar />
         <main className="pb-16 md:pb-0">{children}</main>
       </StoreProvider>

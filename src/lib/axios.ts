@@ -17,12 +17,12 @@ api.interceptors.request.use(
   (config) => {
     // Extraire XSRF-TOKEN du cookie
     const token = getCookie('XSRF-TOKEN');
-    
+
     if (token) {
       // Décoder le token (Laravel encode en URL)
       config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
     }
-    
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -32,10 +32,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // console.log("Error", error);
     if (error.response?.status === 401) {
       localStorage.removeItem('auth-storage');
       window.location.href = '/login';
     }
+    // Ajouter — compte suspendu
+    if (
+      error.response?.status === 403 &&
+      (error.response.data.code === 'ACCOUNT_SUSPENDED' ||
+        error.response?.data?.message?.includes('suspendu'))
+    ) {
+      localStorage.removeItem('auth-storage');
+      window.location.href = '/login?suspended=true';
+    }
+
     return Promise.reject(error);
   }
 )
@@ -43,14 +54,14 @@ api.interceptors.response.use(
 // Helper: Extraire cookie par nom
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
-  
+
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
-  
+
   if (parts.length === 2) {
     return parts.pop()?.split(';').shift() || null;
   }
-  
+
   return null;
 }
 

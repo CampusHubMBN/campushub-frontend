@@ -1,22 +1,22 @@
 // src/types/api.ts
 // ========== USER TYPES ==========
 
-export type UserRole = 
-  | 'student' 
-  | 'alumni' 
-  | 'bde_member' 
-  | 'pedagogical' 
-  | 'company' 
+export type UserRole =
+  | 'student'
+  | 'alumni'
+  | 'bde_member'
+  | 'pedagogical'
+  | 'company'
   | 'admin';
 
-export type UserLevel = 
-  | 'beginner' 
-  | 'active_member' 
-  | 'contributor' 
-  | 'expert' 
+export type UserLevel =
+  | 'beginner'
+  | 'active_member'
+  | 'contributor'
+  | 'expert'
   | 'vip';
 
-// ✅ User (minimaliste - auth seulement)
+// User (minimaliste - auth seulement)
 export interface User {
   id: string; // UUID
   name: string;
@@ -26,16 +26,17 @@ export interface User {
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
-  
-  // ✅ Relation eager loaded (optionnelle)
+  suspended_at: string;
+
+  // Relation eager loaded (optionnelle)
   info?: UserInfo;
 }
 
-// ✅ UserInfo (profil complet)
+// UserInfo (profil complet)
 export interface UserInfo {
   id: string;
   user_id: string;
-  
+
   // Profile
   avatar_url: string | null;
   bio: string | null;
@@ -43,27 +44,27 @@ export interface UserInfo {
   linkedin_url: string | null;
   github_url: string | null;
   website_url: string | null;
-  
+
   // Professional
   cv_url: string | null;
   skills: string[];
   languages: Language[];
-  
+
   // Academic
   program: string | null;
   year: number | null;
   graduation_year: number | null;
   specialization: string | null;
   campus: string | null;
-  
+
   // Company reference
   company_id: string | null;
-  
+
   // Gamification
   reputation_points: number;
   level: UserLevel;
   profile_completion: number;
-  
+
   created_at: string;
   updated_at: string;
 }

@@ -15,7 +15,8 @@ export default function LoginPage() {
   const { login, isLoggingIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+  const isSuspended = searchParams.get('suspended') === 'true';
+
   // Récupérer l'URL de redirection (si présente)
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
@@ -31,7 +32,7 @@ export default function LoginPage() {
     try {
       await login(data);
       toast.success('Connexion réussie !');
-      
+
       // Rediriger vers la page d'origine ou dashboard
       router.push(redirectTo);
     } catch (error: any) {
@@ -51,7 +52,11 @@ export default function LoginPage() {
           </h1>
           <p className="text-gray-600 mt-2">Connectez-vous à votre compte</p>
         </div>
-
+        {isSuspended && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          Votre compte a été suspendu. Contactez l'administration.
+        </div>
+        )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField

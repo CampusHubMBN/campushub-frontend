@@ -1,6 +1,6 @@
 // src/services/api/job-applications.api.ts
 import { api } from '@/lib/axios';
-import { JobApplication, ApplicationFormData } from '@/types/job-application';
+import { JobApplication, ApplicationFormData, UpdateStatusPayload, ApplicationStatus } from '@/types/job-application';
 
 export const jobApplicationsApi = {
   /**
@@ -53,5 +53,28 @@ export const jobApplicationsApi = {
    */
   withdrawApplication: async (id: string): Promise<void> => {
     await api.post(`/applications/${id}/withdraw`);
+  },
+
+  /**
+   * Candidatures pour un poste (recruteur/admin)
+   */
+  getJobApplications: async (
+    jobId: string,
+    filters?: { status?: ApplicationStatus; page?: number }
+  ): Promise<{ data: JobApplication[]; meta?: { current_page: number; last_page: number; per_page: number; total: number } }> => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.page) params.append('page', filters.page.toString());
+    const qs = params.toString();
+    const response = await api.get(`/jobs/${jobId}/applications${qs ? `?${qs}` : ''}`);
+    return response.data;
+  },
+
+  /**
+   * Mettre à jour le statut d'une candidature (recruteur/admin)
+   */
+  updateApplicationStatus: async (id: string, payload: UpdateStatusPayload): Promise<JobApplication> => {
+    const response = await api.patch<{ application: JobApplication }>(`/applications/${id}/status`, payload);
+    return response.data.application;
   },
 };

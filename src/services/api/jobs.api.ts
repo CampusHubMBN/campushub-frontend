@@ -62,6 +62,14 @@ export const jobsApi = {
   deleteJob: async (id: string): Promise<void> => {
     await api.delete(`/jobs/${id}`);
   },
+
+  /**
+   * Mes offres postées (recruteur)
+   */
+  getMyPostedJobs: async (): Promise<Job[]> => {
+    const response = await api.get<{ data: Job[] }>('/my-posted-jobs');
+    return response.data.data;
+  },
 };
 
 // Export pour compatibilité avec ton code actuel

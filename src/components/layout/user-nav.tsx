@@ -24,7 +24,7 @@ export function UserNav() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
-  // ✅ Pattern: Attendre que component soit monté côté client
+  // Pattern: Attendre que component soit monté côté client
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -45,32 +45,13 @@ export function UserNav() {
     return <AvatarSkeleton />
   }
 
-   // Pendant hydration, afficher loader
-  // if (!hydrated) {
-  //   <AvatarSkeleton />
-  // }
-
-   // Pendant hydration
-  // if (!_hasHydrated) {
-  //   return <AvatarSkeleton />;
-  // }
-
-  // console.log('🔍 UserNav - hydrated:', hydrated);
-  // console.log('🔍 UserNav - user:', user);
-  // console.log('🔍 UserNav - user?.name:', user?.name);
-
-  // if (!hydrated) {
-  //   console.log('⏳ Waiting for hydration...');
-  //   return <AvatarSkeleton />;
-  // }
-
 
   // après l'hydratation si pas de user
   if (!user || !user.name) {
     return null;
   }
-  
-  console.log('✅ User ready:', user.name);
+
+  // console.log('✅ User ready:', user.name);
 
   const initials = user.name
     .split(' ')
@@ -96,9 +77,9 @@ export function UserNav() {
         <button className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-campus-blue rounded-full p-1">
           <Avatar className="h-9 w-9 border-2 border-campus-blue">
             {/* ✅ Avatar depuis user.info */}
-            <AvatarImage 
-              src={user.info?.avatar_url || undefined} 
-              alt={user.name} 
+            <AvatarImage
+              src={user.info?.avatar_url || undefined}
+              alt={user.name}
             />
             <AvatarFallback className="bg-campus-blue text-white">
               {initials}

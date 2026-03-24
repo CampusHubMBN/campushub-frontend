@@ -33,6 +33,11 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: (data) => {
+      // Vider tout le cache React Query avant de setter le nouvel user
+      queryClient.clear();
+      // Reset le store Zustand
+      logoutStore();
+      // Setter le nouvel user
       setAuth(data.user);
       queryClient.setQueryData(['auth', 'me'], data.user);
     },

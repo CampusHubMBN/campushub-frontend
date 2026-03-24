@@ -15,6 +15,7 @@ import {
   Sparkles, Briefcase, Clock, CheckCircle2, TrendingUp,
   ArrowRight, Building2, MapPin, Eye, RotateCcw, ChevronRight,
   FileText, Lightbulb, BookOpen, Pencil, Plus, ToggleRight,
+  MessageSquare,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,6 +30,9 @@ import { Article, ARTICLE_AUTHOR_ROLES, DIFFICULTY_LABELS, DIFFICULTY_COLORS } f
 import { Job } from '@/types/job';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { postsApi } from '@/services/api/posts.api';
+import { Post, REACTION_LABELS } from '@/types/post';
+import { PostFeedCard } from '@/components/blog/PostFeedCard';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function computeAppStats(applications: JobApplication[]) {
@@ -223,6 +227,7 @@ function DraftArticleCard({ article, onPublish, publishing }: {
   );
 }
 
+
 // ─── Skeletons ────────────────────────────────────────────────────────────────
 function ApplicationsSkeleton() {
   return (
@@ -257,6 +262,8 @@ function SidebarSkeleton() {
   );
 }
 
+
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user }    = useAuthStore();
@@ -265,6 +272,8 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  console.log('User', user);
 
   const isAuthor = user && ARTICLE_AUTHOR_ROLES.includes(user.role as any);
 
@@ -279,6 +288,22 @@ export default function DashboardPage() {
     queryKey: ['jobs', 'recommended'],
     queryFn:  () => jobsApi.getJobs({ page: 1 }),
     enabled:  mounted && !!user,
+  });
+
+  // Posts récents (tous utilisateurs)
+  const { data: recentPostsData, isLoading: loadingPosts } = useQuery({
+    queryKey: ['posts', 'dashboard-recent'],
+    queryFn:  () => postsApi.getPosts({ page: 1 }),
+    enabled:  mounted && !!user,
+    staleTime: 60 * 1000,
+  });
+
+  // Brouillons posts de l'auteur
+  const { data: postDraftsData } = useQuery({
+    queryKey: ['my-posts', 'draft'],
+    queryFn:  () => postsApi.getPosts({ mine: true, status: 'draft' }),
+    enabled:  mounted && !!user,
+    staleTime: 30 * 1000,
   });
 
   // Articles récents (tous utilisateurs)
@@ -317,6 +342,16 @@ export default function DashboardPage() {
     onError: () => toast.error('Erreur lors de la publication'),
   });
 
+  const publishPostMutation = useMutation({
+    mutationFn: (id: string) => postsApi.togglePublish(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Post publié !');
+    },
+    onError: () => toast.error('Erreur lors de la publication'),
+  });
+
   // ── Guards ────────────────────────────────────────────────────────────────
   if (!mounted) return <AvatarSkeleton />;
   if (!user) return (
@@ -333,6 +368,9 @@ export default function DashboardPage() {
     .slice(0, 3);
   const recentArticles = (recentArticlesData?.data ?? []).slice(0, 4);
   const drafts         = (draftsData?.data ?? []).slice(0, 3);
+
+  const recentPosts = (recentPostsData?.data ?? []).slice(0, 4);
+  const postDrafts  = (postDraftsData?.data ?? []).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-campus-gray-50">
@@ -470,6 +508,63 @@ export default function DashboardPage() {
               </Card>
             )}
 
+            {/* {// Brouillons posts — visibles par tous (tout le monde peut bloguer) } */}
+            {postDrafts.length > 0 && (
+              <Card className="border-campus-gray-300 shadow-sm">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-campus-blue" />
+                    Mes brouillons blog
+                    <span className="text-xs font-normal bg-campus-gray-100 text-campus-gray-600 px-2 py-0.5 rounded-full border border-campus-gray-300">
+                      {postDraftsData?.meta?.total ?? postDrafts.length}
+                    </span>
+                  </CardTitle>
+                  <div className="flex items-center gap-1 -mr-2">
+                    <Button variant="ghost" size="sm"
+                      className="text-xs text-campus-blue hover:bg-campus-blue-50"
+                      onClick={() => router.push('/dashboard/blog')}
+                    >
+                      Gérer <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                    <Button size="sm"
+                      className="bg-campus-blue hover:bg-campus-blue-600 text-white h-7 px-2 text-xs gap-1"
+                      onClick={() => router.push('/dashboard/blog/new/edit')}
+                    >
+                      <Plus className="h-3 w-3" />Nouveau
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="divide-y divide-campus-gray-100">
+                    {postDrafts.map((post) => (
+                      <div key={post.id} className="flex items-center gap-3 py-2.5 px-1 group">
+                        <div className="w-2 h-2 rounded-full bg-campus-gray-300 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-campus-gray-700 truncate">{post.title}</p>
+                          <p className="text-xs text-campus-gray-400">
+                            Modifié {formatDistanceToNow(new Date(post.updated_at), { addSuffix: true, locale: fr })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          <button onClick={() => router.push(`/dashboard/blog/${post.id}/edit`)}
+                            className="h-6 w-6 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => publishMutation.mutate(post.id)}
+                            disabled={publishMutation.isPending}
+                            className="h-6 px-2 flex items-center gap-1 rounded text-xs text-green-600 border border-green-200 hover:bg-green-50"
+                          >
+                            <ToggleRight className="h-3 w-3" />Publier
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Profile completion */}
             {user.info && user.info.profile_completion < 100 && (
               <Card className="border-campus-orange-200 bg-campus-orange-50 shadow-sm">
@@ -544,6 +639,39 @@ export default function DashboardPage() {
                 ) : (
                   <div className="space-y-2">
                     {recentArticles.map((article) => <ArticleCard key={article.id} article={article} />)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* // ── Posts récents ── */}
+            <Card className="border-campus-gray-300 shadow-sm">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-campus-blue" />Posts récents
+                </CardTitle>
+                <Button variant="ghost" size="sm"
+                  className="text-xs text-campus-blue hover:bg-campus-blue-50 -mr-2"
+                  onClick={() => router.push('/blog')}
+                >
+                  Tous <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {loadingPosts ? <SidebarSkeleton /> : recentPosts.length === 0 ? (
+                  <div className="py-6 text-center">
+                    <MessageSquare className="h-8 w-8 text-campus-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-campus-gray-500">Aucun post publié</p>
+                    <Button variant="ghost" size="sm"
+                      className="mt-2 text-xs text-campus-blue"
+                      onClick={() => router.push('/dashboard/blog/new/edit')}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />Écrire le premier
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {recentPosts.map((post) => <PostFeedCard key={post.id} post={post} />)}
                   </div>
                 )}
               </CardContent>
