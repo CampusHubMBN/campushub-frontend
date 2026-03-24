@@ -3,7 +3,6 @@
 
 import { Job } from '@/types/job';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   MapPin,
@@ -42,6 +41,17 @@ export function JobCard({ job }: JobCardProps) {
       freelance: 'Freelance',
     };
     return labels[type] || type;
+  };
+
+  const getTypeBadgeStyle = (type: string) => {
+    const styles: Record<string, string> = {
+      internship:    'bg-violet-100 text-violet-700 border-violet-200',
+      apprenticeship:'bg-teal-100   text-teal-700   border-teal-200',
+      cdd:           'bg-amber-100  text-amber-700  border-amber-200',
+      cdi:           'bg-emerald-100 text-emerald-700 border-emerald-200',
+      freelance:     'bg-blue-100   text-blue-700   border-blue-200',
+    };
+    return styles[type] ?? 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
   const getLocationTypeLabel = (locationType: string) => {
@@ -109,48 +119,41 @@ export function JobCard({ job }: JobCardProps) {
       </CardHeader>
 
       <CardContent className="space-y-3 pb-3">
-        {/* Job Type & Location Type */}
+        {/* Job Type badge — colored per type like reference design */}
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{getTypeLabel(job.type)}</Badge>
-          <Badge variant="outline">{getLocationTypeLabel(job.location_type)}</Badge>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getTypeBadgeStyle(job.type)}`}>
+            {getTypeLabel(job.type)}
+          </span>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+            {getLocationTypeLabel(job.location_type)}
+          </span>
         </div>
 
-        {/* Details */}
-        <div className="space-y-2 text-sm text-gray-600">
-          {/* Location */}
+        {/* Detail pill tags */}
+        <div className="flex flex-wrap gap-1.5">
           {job.location_city && (
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">
-                {job.location_city}, {job.location_country}
-              </span>
-            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-50 text-gray-600 border border-gray-200">
+              <MapPin className="h-3 w-3" />
+              {job.location_city}
+            </span>
           )}
-
-          {/* Duration */}
           {job.duration_months && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 flex-shrink-0" />
-              <span>{job.duration_months} mois</span>
-            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-50 text-gray-600 border border-gray-200">
+              <Clock className="h-3 w-3" />
+              {job.duration_months} mois
+            </span>
           )}
-
-          {/* Salary */}
           {formatSalary() && (
-            <div className="flex items-center gap-2">
-              <Euro className="h-4 w-4 flex-shrink-0" />
-              <span>{formatSalary()}</span>
-            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-50 text-gray-600 border border-gray-200">
+              <Euro className="h-3 w-3" />
+              {formatSalary()}
+            </span>
           )}
-
-          {/* Start Date */}
           {job.start_date && (
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
-              <span>
-                Début : {new Date(job.start_date).toLocaleDateString('fr-FR')}
-              </span>
-            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-gray-50 text-gray-600 border border-gray-200">
+              <Calendar className="h-3 w-3" />
+              {new Date(job.start_date).toLocaleDateString('fr-FR')}
+            </span>
           )}
         </div>
 

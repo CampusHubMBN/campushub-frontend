@@ -96,7 +96,7 @@ export default function ProtectedLayout({
       <StoreProvider>
         <NotificationInitializer />
         <Navbar />
-        <main className="pb-16 md:pb-0">{children}</main>
+        <main className="pt-14 pb-16 md:pb-0 md:pl-56">{children}</main>
       </StoreProvider>
 
     </div>
