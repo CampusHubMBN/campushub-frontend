@@ -3,12 +3,16 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { eventsApi } from '@/services/api/events.api';
+import { useAuthStore } from '@/store/auth.store';
 import { EventCard } from '@/components/events/EventCard';
-import { Loader2, CalendarDays, Search } from 'lucide-react';
+import { Loader2, CalendarDays, Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+const ORGANIZER_ROLES = ['admin', 'bde_member', 'pedagogical'];
 
 const TYPE_FILTERS = [
   { value: '',             label: 'Tous' },
@@ -20,6 +24,9 @@ const TYPE_FILTERS = [
 ];
 
 export default function EventsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const isOrganizer = user && ORGANIZER_ROLES.includes(user.role);
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
 
@@ -56,9 +63,20 @@ export default function EventsPage() {
               <h1 className="text-4xl font-bold leading-tight">Événements</h1>
             </div>
           </div>
-          <p className="text-blue-100 text-lg max-w-xl">
-            Ateliers, conférences, networking et plus — restez connecté à la vie du campus.
-          </p>
+          <div className="flex items-end justify-between flex-wrap gap-4">
+            <p className="text-blue-100 text-lg max-w-xl">
+              Ateliers, conférences, networking et plus — restez connecté à la vie du campus.
+            </p>
+            {isOrganizer && (
+              <Button
+                onClick={() => router.push('/events/create')}
+                className="bg-white text-campus-blue hover:bg-blue-50 font-semibold shrink-0"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Créer un événement
+              </Button>
+            )}
+          </div>
 
           {/* Search bar */}
           <div className="mt-8 max-w-md relative">

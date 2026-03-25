@@ -7,6 +7,11 @@ export const jobApplicationsApi = {
    * Postuler à une offre
    */
   apply: async (jobId: string, data: ApplicationFormData): Promise<JobApplication> => {
+    const MAX_CV_SIZE = 10 * 1024 * 1024; // 10 MB
+    if (data.cv && data.cv.size > MAX_CV_SIZE) {
+      throw new Error(`Le fichier CV est trop volumineux (max 10 Mo, reçu ${(data.cv.size / 1024 / 1024).toFixed(1)} Mo)`);
+    }
+
     const formData = new FormData();
     formData.append('cover_letter', data.cover_letter);
 

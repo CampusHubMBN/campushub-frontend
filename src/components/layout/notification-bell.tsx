@@ -15,6 +15,7 @@ function NotifIcon({ type }: { type: string }) {
   if (type.includes('application')) return <Briefcase className={cn(base, 'text-campus-blue')} />;
   if (type.includes('comment') || type.includes('reaction')) return <MessageSquare className={cn(base, 'text-campus-orange')} />;
   if (type.includes('user')) return <UserPlus className={cn(base, 'text-green-500')} />;
+  if (type === 'event.cancelled') return <CalendarDays className={cn(base, 'text-red-500')} />;
   if (type.includes('event')) return <CalendarDays className={cn(base, 'text-indigo-500')} />;
   return <Zap className={cn(base, 'text-campus-gray-400')} />;
 }

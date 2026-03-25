@@ -75,6 +75,30 @@ export const usersApi = {
     return response.data.data;
   },
 
+  // Change password
+  changePassword: async (data: {
+    current_password: string;
+    password: string;
+    password_confirmation: string;
+  }): Promise<{ message: string }> => {
+    const response = await api.patch('/account/password', data);
+    return response.data;
+  },
+
+  // Change email
+  changeEmail: async (data: {
+    email: string;
+    password: string;
+  }): Promise<{ message: string; email: string }> => {
+    const response = await api.patch('/account/email', data);
+    return response.data;
+  },
+
+  // Delete account
+  deleteAccount: async (password: string): Promise<void> => {
+    await api.delete('/account', { data: { password } });
+  },
+
   // Supprimer CV
   deleteCv: async (userId: string): Promise<{
     cv_url: null;

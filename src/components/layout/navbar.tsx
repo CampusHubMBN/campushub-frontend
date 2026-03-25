@@ -22,12 +22,23 @@ export function Navbar() {
   const mounted = useMounted();
   const pathname = usePathname();
 
+  const homeItem = !mounted || !user ? { label: 'Dashboard', href: '/jobs' }
+    : user.role === 'admin'   ? { label: 'Administration',  href: '/admin'      }
+    : user.role === 'company' ? { label: 'Recrutement',     href: '/recruiter'  }
+    : { label: 'Dashboard', href: '/dashboard' };
+
+  // Company sees only Jobs + Events (no Articles/Blog)
+  const visibleNavItems = mounted && user?.role === 'company'
+    ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
+    : navItems;
+
   const allNavItems = [
     ...(mounted && user
-      ? [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
+      ? [{ ...homeItem, icon: LayoutDashboard }]
       : []),
-    ...navItems,
-    ...(mounted && (user?.role === 'company' || user?.role === 'admin')
+    ...visibleNavItems,
+    // Recrutement only for admin (company's home IS /recruiter already shown as Dashboard)
+    ...(mounted && user?.role === 'admin'
       ? [{ label: 'Recrutement', href: '/recruiter', icon: Users }]
       : []),
   ];
@@ -36,7 +47,7 @@ export function Navbar() {
     <>
       {/* ── Top bar: logo + bell + UserNav ──────────────────── */}
       <header className="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-5 bg-white border-b border-gray-200 shadow-sm">
-        <Link href={user ? '/dashboard' : '/jobs'} className="flex items-center gap-2.5">
+        <Link href={homeItem.href} className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-campus-blue to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
             <span className="text-white font-black text-lg tracking-tight leading-none">C</span>
           </div>
@@ -87,10 +98,19 @@ function MobileNav() {
   const { user } = useAuthStore();
   const mounted = useMounted();
 
+  const homeHref = !mounted || !user ? '/jobs'
+    : user.role === 'admin'   ? '/admin'
+    : user.role === 'company' ? '/recruiter'
+    : '/dashboard';
+
+  const visibleNavItems = mounted && user?.role === 'company'
+    ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
+    : navItems;
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
       <div className="flex items-center justify-around h-16 px-2">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
           return (
@@ -108,16 +128,17 @@ function MobileNav() {
           );
         })}
         <Link
-          href="/dashboard"
+          href={homeHref}
           className={cn(
             'flex flex-col items-center justify-center flex-1 h-full gap-1',
-            pathname === '/dashboard' ? 'text-campus-blue' : 'text-gray-600'
+            pathname === homeHref ? 'text-campus-blue' : 'text-gray-600'
           )}
         >
           <LayoutDashboard className="h-5 w-5" />
           <span className="text-xs font-medium">Accueil</span>
         </Link>
-        {mounted && (user?.role === 'company' || user?.role === 'admin') && (
+        {/* Recrutement only for admin — company's Dashboard already points to /recruiter */}
+        {mounted && user?.role === 'admin' && (
           <Link
             href="/recruiter"
             className={cn(

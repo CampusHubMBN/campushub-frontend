@@ -109,17 +109,17 @@ function ApplicationRow({ application, onWithdraw, withdrawing }: {
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex flex-col items-end gap-1 flex-shrink-0 w-32">
         <StatusBadge status={application.status} />
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50"
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50"
             title="Voir l'offre" onClick={() => job && router.push(`/jobs/${job.id}`)}>
-            <Eye className="h-3.5 w-3.5" />
+            <Eye className="h-3 w-3" />
           </Button>
           {canWithdraw && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-campus-gray-400 hover:text-red-500 hover:bg-red-50"
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-campus-gray-400 hover:text-red-500 hover:bg-red-50"
               title="Retirer la candidature" disabled={withdrawing} onClick={() => onWithdraw(application.id)}>
-              <RotateCcw className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3 w-3" />
             </Button>
           )}
         </div>
@@ -273,7 +273,11 @@ export default function DashboardPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  console.log('User', user);
+  // Role-based dashboard redirects
+  useEffect(() => {
+    if (user?.role === 'admin')   router.replace('/admin');
+    if (user?.role === 'company') router.replace('/recruiter');
+  }, [user, router]);
 
   const isAuthor = user && ARTICLE_AUTHOR_ROLES.includes(user.role as any);
 

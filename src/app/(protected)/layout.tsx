@@ -37,13 +37,23 @@ export default function ProtectedLayout({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Toujours vérifier avec le serveur, pas seulement si !user
         const userData = await authApi.me();
-        console.log('UserDate', userData);
-        // Si le user retourné est différent, mettre à jour le store
         if (!user || user.id !== userData.id) {
-          const userData = await authApi.me();
           setAuth(userData);
+        }
+        // Role-based home redirects
+        if (userData.role === 'admin' && pathname === '/dashboard') {
+          router.replace('/admin');
+        }
+        if (userData.role === 'company' && pathname === '/dashboard') {
+          router.replace('/recruiter');
+        }
+        // Company cannot access articles or blog
+        if (
+          userData.role === 'company' &&
+          (pathname.startsWith('/articles') || pathname.startsWith('/blog'))
+        ) {
+          router.replace('/recruiter');
         }
       } catch (error) {
         console.error('Auth check failed:', error);

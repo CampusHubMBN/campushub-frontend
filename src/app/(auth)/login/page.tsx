@@ -17,8 +17,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const isSuspended = searchParams.get('suspended') === 'true';
 
-  // Récupérer l'URL de redirection (si présente)
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const explicitRedirect = searchParams.get('redirect');
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(LoginSchema),
@@ -30,11 +29,16 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginInput) => {
     try {
-      await login(data);
+      const result = await login(data);
       toast.success('Connexion réussie !');
 
-      // Rediriger vers la page d'origine ou dashboard
-      router.push(redirectTo);
+      // Honor an explicit ?redirect= param, otherwise send each role to their home
+      const role = result?.user?.role;
+      const destination = explicitRedirect
+        ?? (role === 'admin'   ? '/admin'
+          : role === 'company' ? '/recruiter'
+          : '/dashboard');
+      router.push(destination);
     } catch (error: any) {
       toast.error('Erreur', {
         description: error.response?.data?.message || 'Identifiants invalides',

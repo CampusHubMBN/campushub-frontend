@@ -10,11 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import {
   MapPin, Calendar, Clock, Users, ArrowLeft, Loader2,
   Trophy, Mic2, Network, Dumbbell, Star, CheckCircle2, XCircle,
+  Pencil, Trash2, Eye,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { EventType } from '@/types/event';
+
+const ORGANIZER_ROLES = ['admin', 'bde_member', 'pedagogical'];
 
 const EVENT_CONFIG: Record<EventType, { label: string; icon: React.ElementType; gradient: string }> = {
   general:    { label: 'Événement',  icon: Star,     gradient: 'from-campus-blue to-blue-700' },
@@ -47,6 +50,32 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const { data: event, isLoading } = useQuery({
     queryKey: ['event', id],
     queryFn: () => eventsApi.getEvent(id),
+  });
+
+  const isOrganizer = user && ORGANIZER_ROLES.includes(user.role) &&
+    (user.role === 'admin' || event?.organizer?.id === user.id);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => eventsApi.delete(id),
+    onSuccess: () => {
+      toast.success('Événement annulé');
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      router.push('/events');
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message ?? 'Erreur lors de l\'annulation');
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: () => eventsApi.publish(id),
+    onSuccess: () => {
+      toast.success('Événement publié !');
+      queryClient.invalidateQueries({ queryKey: ['event', id] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message ?? 'Erreur lors de la publication');
+    },
   });
 
   const attendMutation = useMutation({
@@ -116,13 +145,53 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="container mx-auto px-4 py-10 relative">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-white/80 hover:text-white mb-6 text-sm font-medium transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Retour aux événements
-          </button>
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour aux événements
+            </button>
+
+            {isOrganizer && (
+              <div className="flex items-center gap-2">
+                {!event.published_at && (
+                  <Button
+                    size="sm"
+                    onClick={() => publishMutation.mutate()}
+                    disabled={publishMutation.isPending}
+                    className="bg-white text-emerald-700 hover:bg-emerald-50 text-xs font-semibold"
+                  >
+                    {publishMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                    Publier
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => router.push(`/events/${id}/edit`)}
+                  className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold backdrop-blur-sm"
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  Modifier
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    if (confirm(`Annuler l'événement "${event.title}" ? Les inscrits seront notifiés.`)) {
+                      deleteMutation.mutate();
+                    }
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="bg-red-500/80 hover:bg-red-600 text-xs font-semibold backdrop-blur-sm"
+                >
+                  {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                  Annuler l'événement
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-start gap-3 mb-3">
             <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold">

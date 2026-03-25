@@ -18,6 +18,9 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
+
+const APPLICANT_ROLES = ['student', 'alumni', 'bde_member'];
 
 export default function JobDetailPage({
   params,
@@ -26,6 +29,8 @@ export default function JobDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { user } = useAuthStore();
+  const canApply = !user || APPLICANT_ROLES.includes(user.role);
 
   const { data: job, isLoading, isError } = useQuery({
     queryKey: ['job', id],
@@ -153,41 +158,43 @@ export default function JobDetailPage({
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Apply Card */}
-            <Card className="border-campus-gray-300 shadow-sm">
-              <CardHeader>
-                <CardTitle>Postuler</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    if (job.source_type === 'external') {
-                      window.open(job.application_url || job.external_url!, '_blank');
-                    } else {
-                      router.push(`/jobs/${job.id}/apply`);
-                    }
-                  }}
-                >
-                  {job.source_type === 'external' ? (
-                    <>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Postuler sur le site
-                    </>
-                  ) : job.has_applied ? (
-                    'Candidature envoyée'
-                  ) : (
-                    'Postuler maintenant'
-                  )}
-                </Button>
+            {canApply && (
+              <Card className="border-campus-gray-300 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Postuler</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      if (job.source_type === 'external') {
+                        window.open(job.application_url || job.external_url!, '_blank');
+                      } else {
+                        router.push(`/jobs/${job.id}/apply`);
+                      }
+                    }}
+                  >
+                    {job.source_type === 'external' ? (
+                      <>
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Postuler sur le site
+                      </>
+                    ) : job.has_applied ? (
+                      'Candidature envoyée'
+                    ) : (
+                      'Postuler maintenant'
+                    )}
+                  </Button>
 
-                {job.application_deadline && (
-                  <p className="text-sm text-gray-600 text-center">
-                    Date limite :{' '}
-                    {new Date(job.application_deadline).toLocaleDateString('fr-FR')}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                  {job.application_deadline && (
+                    <p className="text-sm text-gray-600 text-center">
+                      Date limite :{' '}
+                      {new Date(job.application_deadline).toLocaleDateString('fr-FR')}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Details Card */}
             <Card className="border-campus-gray-300 shadow-sm">

@@ -5,7 +5,7 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
 const httpLink = new HttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL ?? 'http://localhost:3001/graphql',
+  uri: '/graphql',   // proxied through Next.js → same origin → cookie sent automatically
   credentials: 'include',
 });
 
@@ -13,7 +13,7 @@ const httpLink = new HttpLink({
 const wsLink = typeof window !== 'undefined'
   ? new GraphQLWsLink(
       createClient({
-        url: process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/graphql',
+        url: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/graphql`,
         connectionParams: () => ({ cookie: document.cookie }),
         // Reconnect automatically
         shouldRetry: () => true,
