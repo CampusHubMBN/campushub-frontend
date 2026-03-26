@@ -1,4 +1,4 @@
-// src/app/(protected)/blog/[slug]/page.tsx
+// src/app/(protected)/blog/[id]/page.tsx
 'use client';
 
 import { use, useState } from 'react';
@@ -20,7 +20,6 @@ import { storageUrl } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { error } from 'console';
 
 // ─── Réaction button ──────────────────────────────────────────────────────────
 function ReactionBtn({
@@ -65,7 +64,6 @@ function CommentItem({
   const initials = comment.author?.name
     ?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) ?? '?';
 
-  // Replies query (chargées à la demande)
   const { data: repliesData, isLoading: loadingReplies } = useQuery({
     queryKey: ['comment-replies', comment.id],
     queryFn:  () => postsApi.getReplies(comment.id),
@@ -84,7 +82,7 @@ function CommentItem({
     },
     onError: ((error) => {
       toast.error('Erreur lors de l\'envoi');
-      console.log('erreur', error)
+      console.log('erreur', error);
     }),
   });
 
@@ -109,18 +107,14 @@ function CommentItem({
 
   const replies = repliesData?.data ?? comment.replies ?? [];
 
-  console.log(comment);
-
   return (
     <div className={cn('flex gap-3', depth > 0 && 'ml-10 mt-3')}>
-      {/* Avatar */}
       <Avatar className="h-8 w-8 flex-shrink-0">
         <AvatarImage src={storageUrl(comment.author?.avatar_url) ?? undefined} />
         <AvatarFallback className="bg-campus-blue text-white text-xs">{initials}</AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
-        {/* Bulle commentaire */}
         <div className="bg-campus-gray-50 rounded-xl px-4 py-3 border border-campus-gray-200">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
@@ -132,7 +126,6 @@ function CommentItem({
               </span>
             </div>
 
-            {/* Actions propriétaire */}
             {!comment.is_deleted && comment.is_own && (
               <div className="flex items-center gap-1">
                 <button onClick={() => setEditMode(!editMode)}
@@ -176,7 +169,6 @@ function CommentItem({
           )}
         </div>
 
-        {/* Actions sous le commentaire */}
         {!comment.is_deleted && depth === 0 && (
           <div className="flex items-center gap-3 mt-1.5 ml-2">
             <button
@@ -198,7 +190,6 @@ function CommentItem({
           </div>
         )}
 
-        {/* Zone réponse */}
         {showReply && (
           <div className="mt-3 ml-2 flex gap-2">
             <Avatar className="h-7 w-7 flex-shrink-0">
@@ -230,7 +221,6 @@ function CommentItem({
           </div>
         )}
 
-        {/* Replies */}
         {showReplies && (
           <div className="mt-2 space-y-3">
             {loadingReplies
@@ -250,18 +240,17 @@ function CommentItem({
 export default function BlogPostPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { slug }    = use(params);
+  const { id }      = use(params);
   const router      = useRouter();
   const { user }    = useAuthStore();
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState('');
 
-  // ── Queries ──────────────────────────────────────────────────────────────
   const { data: post, isLoading: loadingPost } = useQuery({
-    queryKey: ['post', slug],
-    queryFn:  () => postsApi.getPost(slug),
+    queryKey: ['post', id],
+    queryFn:  () => postsApi.getPost(id),
   });
 
   const { data: commentsData, isLoading: loadingComments } = useQuery({
@@ -270,11 +259,10 @@ export default function BlogPostPage({
     enabled:  !!post?.id,
   });
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
   const reactMutation = useMutation({
     mutationFn: (type: ReactionType) => postsApi.react(post!.id, { type }),
     onSuccess: (data) => {
-      queryClient.setQueryData(['post', slug], (old: any) => ({
+      queryClient.setQueryData(['post', id], (old: any) => ({
         ...old,
         likes_count:   data.likes_count,
         useful_count:  data.useful_count,
@@ -295,7 +283,6 @@ export default function BlogPostPage({
     onError: () => toast.error('Erreur lors de l\'envoi'),
   });
 
-  // ── Loading ───────────────────────────────────────────────────────────────
   if (loadingPost) return (
     <div className="min-h-screen bg-campus-gray-50">
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-5">
@@ -380,11 +367,10 @@ export default function BlogPostPage({
             </div>
           </div>
 
-          {/* Bouton éditer si propriétaire */}
           {post.is_own_post && (
             <Button variant="outline" size="sm"
               className="border-campus-gray-300 text-campus-gray-600 hover:border-campus-blue hover:text-campus-blue"
-              onClick={() => router.push(`/dashboard/blog/${post.id}/edit`)}
+              onClick={() => router.push(`/blog/${post.id}/edit`)}
             >
               <Pencil className="h-3.5 w-3.5 mr-1.5" />Modifier
             </Button>
@@ -431,7 +417,6 @@ export default function BlogPostPage({
             {post.comments_count} commentaire{post.comments_count > 1 ? 's' : ''}
           </h2>
 
-          {/* Zone nouveau commentaire */}
           <div className="flex gap-3 mb-6">
             <Avatar className="h-8 w-8 flex-shrink-0">
               <AvatarImage src={storageUrl(user?.info?.avatar_url) ?? undefined} />
@@ -459,7 +444,6 @@ export default function BlogPostPage({
             </div>
           </div>
 
-          {/* Liste commentaires */}
           {loadingComments ? (
             <div className="space-y-4">
               {[1, 2].map((i) => (

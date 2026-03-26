@@ -1,9 +1,9 @@
-// src/app/(protected)/dashboard/blog/[id]/edit/page.tsx
+// src/app/(protected)/blog/[id]/edit/page.tsx
 'use client';
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,7 +45,7 @@ const ArticleEditor = dynamic(
 const postSchema = z.object({
   title:       z.string().min(3, 'Titre trop court').max(200),
   category_id: z.string().optional(),
-  tag_input:   z.string().optional(), // champ temporaire pour saisie tag
+  tag_input:   z.string().optional(),
 });
 
 type PostFormValues = z.infer<typeof postSchema>;
@@ -70,7 +70,6 @@ export default function PostEditPage({
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [savedPostId, setSavedPostId]   = useState<string | null>(null);
 
-  // En mode édition, on utilise l'ID réel
   const editId = isNew ? savedPostId : id;
 
   // ── Fetch post existant ──────────────────────────────────────────────────
@@ -96,7 +95,6 @@ export default function PostEditPage({
     defaultValues: { title: '', category_id: '' },
   });
 
-  // Pré-remplir en mode édition
   useEffect(() => {
     if (existing) {
       reset({
@@ -111,7 +109,6 @@ export default function PostEditPage({
     }
   }, [existing, reset]);
 
-  // Auto-slug depuis titre (création)
   const titleValue = watch('title');
 
   // ── Tags ─────────────────────────────────────────────────────────────────
@@ -163,7 +160,6 @@ export default function PostEditPage({
       return postsApi.updatePost(editId!, payload);
     },
     onSuccess: async (post) => {
-      // Upload cover si nouveau fichier
       if (coverFile) {
         try {
           await postsApi.uploadCover(post.id, coverFile);
@@ -179,7 +175,7 @@ export default function PostEditPage({
 
       if (isNew && !savedPostId) {
         setSavedPostId(post.id);
-        router.replace(`/dashboard/blog/${post.id}/edit`);
+        router.replace(`/blog/${post.id}/edit`);
       }
     },
     onError: (error: any) => {
@@ -239,10 +235,10 @@ export default function PostEditPage({
         <div className="sticky top-0 z-10 bg-white border-b border-campus-gray-200 shadow-sm">
           <div className="container mx-auto px-4 max-w-3xl py-3 flex items-center gap-3">
             <Button type="button" variant="ghost" size="sm"
-              onClick={() => router.push('/dashboard/blog')}
+              onClick={() => router.push('/blog')}
               className="text-campus-gray-600 -ml-2"
             >
-              <ArrowLeft className="h-4 w-4 mr-1.5" />Mes posts
+              <ArrowLeft className="h-4 w-4 mr-1.5" />Blog
             </Button>
 
             <span className="text-campus-gray-300">|</span>
@@ -265,7 +261,7 @@ export default function PostEditPage({
               {!isNew && isPublished && (
                 <Button type="button" variant="outline" size="sm"
                   className="border-campus-gray-300 text-campus-gray-600"
-                  onClick={() => window.open(`/blog/${existing?.slug}`, '_blank')}
+                  onClick={() => window.open(`/blog/${id}`, '_blank')}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1.5" />Voir
                 </Button>
@@ -415,14 +411,13 @@ export default function PostEditPage({
           {/* ── Actions bas de page ── */}
           <div className="flex items-center justify-between pt-2">
             <Button type="button" variant="ghost" size="sm"
-              onClick={() => router.push('/dashboard/blog')}
+              onClick={() => router.push('/blog')}
               className="text-campus-gray-400 hover:text-campus-gray-700"
             >
               Annuler
             </Button>
 
             <div className="flex items-center gap-2">
-              {/* Publier directement */}
               {(!isNew || savedPostId) && !isPublished && (
                 <Button
                   type="button"

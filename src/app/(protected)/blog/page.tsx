@@ -31,7 +31,7 @@ function PostCard({ post }: { post: Post }) {
 
   return (
     <div
-      onClick={() => router.push(`/blog/${post.slug}`)}
+      onClick={() => router.push(`/blog/${post.id}`)}
       className="bg-white border border-campus-gray-200 rounded-xl p-5 cursor-pointer hover:border-campus-blue-200 hover:shadow-sm transition-all group"
     >
       {/* Cover image */}
@@ -201,7 +201,7 @@ export default function BlogPage() {
               </p>
             </div>
             <Button
-              onClick={() => router.push('/dashboard/blog/new/edit')}
+              onClick={() => router.push('/blog/new/edit')}
               className="bg-campus-blue hover:bg-campus-blue-600 text-white gap-2 flex-shrink-0"
             >
               <Plus className="h-4 w-4" />Écrire
@@ -281,7 +281,7 @@ export default function BlogPage() {
               <Button
                 size="sm"
                 className="w-full bg-campus-blue hover:bg-campus-blue-600 text-white"
-                onClick={() => router.push('/dashboard/blog/new/edit')}
+                onClick={() => router.push('/blog/new/edit')}
               >
                 <Plus className="h-3.5 w-3.5 mr-1.5" />Écrire un post
               </Button>
@@ -312,7 +312,7 @@ export default function BlogPage() {
                   </p>
                   <Button
                     className="bg-campus-blue hover:bg-campus-blue-600 text-white gap-2"
-                    onClick={() => router.push('/dashboard/blog/new/edit')}
+                    onClick={() => router.push('/blog/new/edit')}
                   >
                     <Plus className="h-4 w-4" />Écrire un post
                   </Button>

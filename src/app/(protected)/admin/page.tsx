@@ -227,14 +227,20 @@ function StatsTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 // USERS TAB
 // ─────────────────────────────────────────────────────────────────────────────
+const ROLE_TRANSITIONS: Record<string, string[]> = {
+  student:    ['bde_member', 'alumni'],
+  bde_member: ['student', 'alumni'],
+};
+
 function UsersTab() {
   const router      = useRouter();
   const queryClient = useQueryClient();
-  const [search, setSearch]   = useState('');
-  const [role, setRole]       = useState('all');
-  const [status, setStatus]   = useState('all');
-  const [page, setPage]       = useState(1);
-  const [debSearch, setDeb]   = useState('');
+  const [search, setSearch]           = useState('');
+  const [role, setRole]               = useState('all');
+  const [status, setStatus]           = useState('all');
+  const [page, setPage]               = useState(1);
+  const [debSearch, setDeb]           = useState('');
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
   const handleSearch = (val: string) => {
     setSearch(val);
@@ -258,6 +264,17 @@ function UsersTab() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       toast.success(result.is_suspended ? 'Utilisateur suspendu' : 'Suspension levée');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Erreur'),
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      adminApi.updateRole(userId, role),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setEditingRoleId(null);
+      toast.success(`Rôle mis à jour : ${ROLE_LABELS[result.role] ?? result.role}`);
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Erreur'),
   });
@@ -345,9 +362,47 @@ function UsersTab() {
                   </div>
 
                   {/* Rôle */}
-                  <Badge className={cn('text-xs border flex-shrink-0', ROLE_COLORS[u.role] ?? ROLE_COLORS.student)}>
-                    {ROLE_LABELS[u.role] ?? u.role}
-                  </Badge>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {editingRoleId === u.id ? (
+                      <div className="flex items-center gap-1">
+                        <select
+                          autoFocus
+                          defaultValue=""
+                          disabled={roleMutation.isPending}
+                          onChange={(e) => {
+                            if (e.target.value) roleMutation.mutate({ userId: u.id, role: e.target.value });
+                          }}
+                          className="h-7 px-2 rounded border border-campus-blue text-xs text-campus-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-campus-blue"
+                        >
+                          <option value="" disabled>Choisir…</option>
+                          {(ROLE_TRANSITIONS[u.role] ?? []).map((r) => (
+                            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => setEditingRoleId(null)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-gray-600 hover:bg-campus-gray-100 transition-colors"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={cn('text-xs border', ROLE_COLORS[u.role] ?? ROLE_COLORS.student)}>
+                          {ROLE_LABELS[u.role] ?? u.role}
+                        </Badge>
+                        {ROLE_TRANSITIONS[u.role] && (
+                          <button
+                            title="Changer le rôle"
+                            onClick={() => setEditingRoleId(u.id)}
+                            className="h-5 w-5 flex items-center justify-center rounded text-campus-gray-300 hover:text-campus-blue hover:bg-campus-blue-50 transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
