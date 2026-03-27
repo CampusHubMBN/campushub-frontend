@@ -50,12 +50,7 @@ export const usersApi = {
 
     const response = await api.post<{ avatar_url: string }>(
       `/users/${userId}/avatar`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
+      formData
     );
 
     return response.data;
@@ -69,9 +64,7 @@ export const usersApi = {
     const formData = new FormData();
     formData.append('cv', file);
 
-    const response = await api.post(`/users/${userId}/cv`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await api.post(`/users/${userId}/cv`, formData);
     return response.data.data;
   },
 

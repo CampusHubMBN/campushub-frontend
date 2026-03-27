@@ -64,7 +64,7 @@ export const articlesApi = {
     return response.data.data;
   },
 
-  markHelpful: async (slug: string): Promise<void> => {
-    await api.post(`/articles/${slug}/helpful`);
+  markHelpful: async (id: string): Promise<void> => {
+    await api.post(`/articles/${id}/helpful`);
   },
 };

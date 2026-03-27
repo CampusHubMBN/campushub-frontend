@@ -133,24 +133,24 @@ function RelatedLinksBlock({ links }: { links: RelatedLink[] }) {
 export default function ArticleDetailPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { slug }    = use(params);
+  const { id }    = use(params);
   const router      = useRouter();
   const { user }    = useAuthStore();
   const queryClient = useQueryClient();
   const [hasVoted, setHasVoted] = useState(false);
 
   const { data: article, isLoading } = useQuery({
-    queryKey: ['article', slug],
-    queryFn:  () => articlesApi.getArticle(slug),
+    queryKey: ['article', id],
+    queryFn:  () => articlesApi.getArticleById(id),
   });
 
   const helpfulMutation = useMutation({
-    mutationFn: () => articlesApi.markHelpful(slug),
+    mutationFn: () => articlesApi.markHelpful(id),
     onSuccess: () => {
       setHasVoted(true);
-      queryClient.invalidateQueries({ queryKey: ['article', slug] });
+      queryClient.invalidateQueries({ queryKey: ['article', id] });
       toast.success('Merci pour votre retour !');
     },
   });
@@ -222,7 +222,7 @@ export default function ArticleDetailPage({
             {canEdit && (
               <Button variant="outline" size="sm"
                 className="ml-auto border-campus-gray-300 text-campus-gray-600 hover:border-campus-blue hover:text-campus-blue"
-                onClick={() => router.push(`/dashboard/articles/${article.id}/edit`)}>
+                onClick={() => router.push(`/articles/${article.id}/edit`)}>
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />Modifier
               </Button>
             )}
@@ -235,7 +235,7 @@ export default function ArticleDetailPage({
         <div className="flex gap-8">
           <article className="flex-1 min-w-0">
 
-            {/* ✅ HTML enrichi avec styles call-out via Tailwind arbitrary */}
+            {/* HTML enrichi avec styles call-out via Tailwind arbitrary */}
             <div
               className={cn(
                 'prose prose-sm max-w-none',

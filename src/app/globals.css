@@ -86,6 +86,12 @@
   --color-popover-foreground: #212121;
 
   --color-ring: #0038BC;
+
+  /* =========================
+     Typography
+  ========================== */
+  --font-sans: var(--font-inter), sans-serif;
+  --font-display: var(--font-sora), sans-serif;
 }
 
 /* =========================================================
@@ -107,7 +113,8 @@ body {
     radial-gradient(ellipse 50vw 40vh at 50% 50%, rgba(147, 178, 248, 0.04) 0%, transparent 70%);
   background-attachment: fixed;
   color: var(--color-campus-gray-900);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-weight: 400;
 }
 
 /* Blurry ambient orbs — purely decorative, fixed behind all content */
@@ -142,4 +149,18 @@ body::after {
 [data-nextjs-scroll-focus-boundary] {
   position: relative;
   z-index: 1;
+}
+
+/* =========================================================
+   Typography
+========================================================= */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 700;
 }

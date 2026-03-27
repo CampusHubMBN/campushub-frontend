@@ -71,7 +71,7 @@ function ArticleCard({ article, canEdit }: { article: any; canEdit: boolean }) {
 
   return (
     <Card
-      onClick={() => router.push(`/articles/${article.slug}`)}
+      onClick={() => router.push(`/articles/${article.id}`)}
       className={cn(
         'border-campus-gray-200 shadow-sm cursor-pointer transition-all group',
         'hover:border-campus-blue-200 hover:shadow-md hover:-translate-y-0.5',
@@ -139,7 +139,7 @@ function ArticleCard({ article, canEdit }: { article: any; canEdit: boolean }) {
               <button
                 onClick={(e) => {
                   e.stopPropagation(); // ne pas naviguer vers le détail
-                  router.push(`/dashboard/articles/${article.id}/edit`);
+                  router.push(`/articles/${article.id}/edit`);
                 }}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50"
                 title="Modifier"
@@ -165,7 +165,7 @@ export default function ArticlesPage() {
   const [difficulty, setDifficulty]    = useState<ArticleDifficulty | 'all'>('all');
   const [page, setPage]                = useState(1);
 
-  // ✅ Vérifie si l'utilisateur peut rédiger
+  // Vérifie si l'utilisateur peut rédiger
   const canWrite = user && ARTICLE_AUTHOR_ROLES.includes(user.role as any);
 
   // Debounce search
@@ -219,7 +219,7 @@ export default function ArticlesPage() {
             {/* ✅ Bouton visible uniquement pour pedagogical et bde_member */}
             {canWrite && (
               <Button
-                onClick={() => router.push('/dashboard/articles/new/edit')}
+                onClick={() => router.push('/articles/new/edit')}
                 className="bg-campus-blue hover:bg-campus-blue-600 text-white flex-shrink-0 gap-2"
               >
                 <Plus className="h-4 w-4" />
@@ -346,7 +346,7 @@ export default function ArticlesPage() {
                     {/* CTA rédiger si aucun article et user auteur */}
                     {canWrite && (
                       <Button
-                        onClick={() => router.push('/dashboard/articles/new/edit')}
+                        onClick={() => router.push('/articles/new/edit')}
                         className="bg-campus-blue hover:bg-campus-blue-600 text-white gap-2"
                       >
                         <Plus className="h-4 w-4" />

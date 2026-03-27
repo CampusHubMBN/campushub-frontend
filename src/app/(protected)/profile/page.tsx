@@ -29,6 +29,8 @@ import {
   Download,
   Trash2,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { AvatarSkeleton } from '@/components/layout/avatar-skeleton';
 import { storageUrl } from '@/lib/utils';
@@ -43,6 +45,8 @@ export default function ProfilePage() {
   const [mounted, setMounted] = useState(false);
 
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [cvPreviewUrl, setCvPreviewUrl] = useState<string | null>(null);
+  const [showExistingPreview, setShowExistingPreview] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
   const [cvDeleting, setCvDeleting] = useState(false);
   const cvInputRef = useRef<HTMLInputElement>(null);
@@ -58,7 +62,9 @@ export default function ProfilePage() {
       toast.error('Le fichier ne doit pas dépasser 5 Mo');
       return;
     }
+    if (cvPreviewUrl) URL.revokeObjectURL(cvPreviewUrl);
     setCvFile(file);
+    setCvPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleCvUpload = async () => {
@@ -69,6 +75,7 @@ export default function ProfilePage() {
       updateUserInfo({ cv_url: result.cv_url, profile_completion: result.profile_completion });
       toast.success('CV uploadé avec succès !');
       setCvFile(null);
+      if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
       if (cvInputRef.current) cvInputRef.current.value = '';
     } catch (error: any) {
       console.log('Error', error.response?.data?.message);
@@ -84,6 +91,7 @@ export default function ProfilePage() {
     try {
       const result = await usersApi.deleteCv(user.id);
       updateUserInfo({ cv_url: null, profile_completion: result.profile_completion });
+      setShowExistingPreview(false);
       toast.success('CV supprimé');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
@@ -593,38 +601,56 @@ export default function ProfilePage() {
 
             {user.info?.cv_url ? (
             // ── CV existant ──
-            <div className="flex items-center gap-4 p-4 bg-campus-blue-50 rounded-lg border border-campus-blue-100">
-              <div className="h-10 w-10 rounded-lg bg-campus-blue flex items-center justify-center flex-shrink-0">
-                <FileText className="h-5 w-5 text-white" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-4 p-4 bg-campus-blue-50 rounded-lg border border-campus-blue-100">
+                <div className="h-10 w-10 rounded-lg bg-campus-blue flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-campus-blue-800">CV actuel</p>
+                  <p className="text-xs text-campus-blue-600 truncate">{user.info.cv_url.split('/').pop()}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowExistingPreview((v) => !v)}
+                    className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-campus-blue border border-campus-blue-200 rounded-lg hover:bg-campus-blue-100 transition-colors"
+                  >
+                    {showExistingPreview
+                      ? <><EyeOff className="h-3.5 w-3.5" />Masquer</>
+                      : <><Eye className="h-3.5 w-3.5" />Aperçu</>
+                    }
+                  </button>
+                  <a
+                    href={storageUrl(user.info.cv_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-campus-blue border border-campus-blue-200 rounded-lg hover:bg-campus-blue-100 transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Voir
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleCvDelete}
+                    disabled={cvDeleting}
+                    className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {cvDeleting
+                      ? <span className="h-3.5 w-3.5 animate-spin border-2 border-red-300 border-t-red-600 rounded-full" />
+                      : <Trash2 className="h-3.5 w-3.5" />
+                    }
+                    Supprimer
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-campus-blue-800">CV actuel</p>
-                <p className="text-xs text-campus-blue-600 truncate">{user.info.cv_url.split('/').pop()}</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <a
-                  // href={user.info.cv_url}
-                  href={storageUrl(user.info.cv_url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-campus-blue border border-campus-blue-200 rounded-lg hover:bg-campus-blue-100 transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Voir
-                </a>
-                <button
-                  type="button"
-                  onClick={handleCvDelete}
-                  disabled={cvDeleting}
-                  className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  {cvDeleting
-                    ? <span className="h-3.5 w-3.5 animate-spin border-2 border-red-300 border-t-red-600 rounded-full" />
-                    : <Trash2 className="h-3.5 w-3.5" />
-                  }
-                  Supprimer
-                </button>
-              </div>
+              {showExistingPreview && (
+                <iframe
+                  src={storageUrl(user.info.cv_url)}
+                  title="Aperçu CV actuel"
+                  className="w-full h-52 rounded-lg border border-campus-blue-100"
+                />
+              )}
             </div>
           ) : (
             // ── Pas de CV ──
@@ -652,7 +678,11 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       type="button"
-                      onClick={() => { setCvFile(null); if (cvInputRef.current) cvInputRef.current.value = ''; }}
+                      onClick={() => {
+                        setCvFile(null);
+                        if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
+                        if (cvInputRef.current) cvInputRef.current.value = '';
+                      }}
                       className="h-7 w-7 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-gray-700"
                     >
                       <X className="h-4 w-4" />
@@ -683,6 +713,13 @@ export default function ProfilePage() {
                   </p>
                   <p className="text-xs text-campus-gray-400">PDF uniquement · Max 5 Mo</p>
                 </div>
+              )}
+              {cvPreviewUrl && (
+                <iframe
+                  src={cvPreviewUrl}
+                  title="Aperçu du CV"
+                  className="w-full h-96 rounded-lg border border-campus-gray-200 mt-3"
+                />
               )}
               <input
                 ref={cvInputRef}

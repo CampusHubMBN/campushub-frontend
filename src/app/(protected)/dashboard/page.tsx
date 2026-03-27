@@ -211,7 +211,7 @@ function DraftArticleCard({ article, onPublish, publishing }: {
         </p>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => router.push(`/dashboard/articles/${article.id}/edit`)}
+        <button onClick={() => router.push(`/articles/${article.id}/edit`)}
           className="h-6 w-6 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50 transition-colors">
           <Pencil className="h-3 w-3" />
         </button>
@@ -279,19 +279,20 @@ export default function DashboardPage() {
     if (user?.role === 'company') router.replace('/recruiter');
   }, [user, router]);
 
-  const isAuthor = user && ARTICLE_AUTHOR_ROLES.includes(user.role as any);
+  const isAuthor       = user && ARTICLE_AUTHOR_ROLES.includes(user.role as any);
+  const isPedagogical  = user?.role === 'pedagogical';
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: applications = [], isLoading: loadingApps } = useQuery({
     queryKey: ['my-applications'],
     queryFn:  jobApplicationsApi.getMyApplications,
-    enabled:  mounted && !!user,
+    enabled:  mounted && !!user && !isPedagogical,
   });
 
   const { data: recommendedData, isLoading: loadingJobs } = useQuery({
     queryKey: ['jobs', 'recommended'],
     queryFn:  () => jobsApi.getJobs({ page: 1 }),
-    enabled:  mounted && !!user,
+    enabled:  mounted && !!user && !isPedagogical,
   });
 
   // Posts récents (tous utilisateurs)
@@ -387,12 +388,20 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <StatCard label="Complétion profil" value={`${user.info?.profile_completion ?? 0}%`} colorClass="bg-campus-blue"     icon={TrendingUp}  />
-          <StatCard label="Candidatures"       value={appStats.total}                           colorClass="bg-campus-blue-700" icon={Briefcase}   />
-          <StatCard label="En cours"           value={appStats.in_progress}                     colorClass="bg-campus-orange"   icon={Clock}       />
-          <StatCard label="Entretiens / Acc."  value={appStats.interview + appStats.accepted}   colorClass="bg-green-500"       icon={CheckCircle2}/>
-        </div>
+        {isPedagogical ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+            <StatCard label="Complétion profil"   value={`${user.info?.profile_completion ?? 0}%`} colorClass="bg-campus-blue"     icon={TrendingUp}    />
+            <StatCard label="Brouillons articles"  value={draftsData?.meta?.total ?? drafts.length} colorClass="bg-campus-blue-700" icon={FileText}      />
+            <StatCard label="Brouillons blog"      value={postDraftsData?.meta?.total ?? postDrafts.length} colorClass="bg-campus-orange" icon={MessageSquare} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            <StatCard label="Complétion profil" value={`${user.info?.profile_completion ?? 0}%`} colorClass="bg-campus-blue"     icon={TrendingUp}  />
+            <StatCard label="Candidatures"       value={appStats.total}                           colorClass="bg-campus-blue-700" icon={Briefcase}   />
+            <StatCard label="En cours"           value={appStats.in_progress}                     colorClass="bg-campus-orange"   icon={Clock}       />
+            <StatCard label="Entretiens / Acc."  value={appStats.interview + appStats.accepted}   colorClass="bg-green-500"       icon={CheckCircle2}/>
+          </div>
+        )}
 
         {/* Grid principale */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -400,8 +409,8 @@ export default function DashboardPage() {
           {/* ── Colonne principale (2/3) ── */}
           <div className="lg:col-span-2 space-y-5">
 
-            {/* Candidatures */}
-            <Card className="border-campus-gray-300 shadow-sm">
+            {/* Candidatures — hidden for pedagogical staff */}
+            {!isPedagogical && <Card className="border-campus-gray-300 shadow-sm">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-campus-blue" />
@@ -458,7 +467,7 @@ export default function DashboardPage() {
                   </>
                 )}
               </CardContent>
-            </Card>
+            </Card>}
 
             {/* ── Section auteur : brouillons à publier ── */}
             {isAuthor && (
@@ -475,11 +484,11 @@ export default function DashboardPage() {
                   </CardTitle>
                   <div className="flex items-center gap-1 -mr-2">
                     <Button variant="ghost" size="sm" className="text-xs text-campus-blue hover:bg-campus-blue-50"
-                      onClick={() => router.push('/dashboard/articles')}>
+                      onClick={() => router.push('/articles')}>
                       Gérer <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                     <Button size="sm" className="bg-campus-blue hover:bg-campus-blue-600 text-white h-7 px-2 text-xs gap-1"
-                      onClick={() => router.push('/dashboard/articles/new/edit')}>
+                      onClick={() => router.push('/articles/new/edit')}>
                       <Plus className="h-3 w-3" />Nouveau
                     </Button>
                   </div>
@@ -494,7 +503,7 @@ export default function DashboardPage() {
                       <p className="text-xs text-campus-gray-500 mb-3">Aucun brouillon en attente</p>
                       <Button variant="outline" size="sm"
                         className="border-campus-gray-300 text-campus-gray-600 gap-1.5 text-xs"
-                        onClick={() => router.push('/dashboard/articles/new/edit')}>
+                        onClick={() => router.push('/articles/new/edit')}>
                         <Plus className="h-3 w-3" />Rédiger un article
                       </Button>
                     </div>
@@ -592,30 +601,32 @@ export default function DashboardPage() {
           {/* ── Sidebar (1/3) ── */}
           <div className="space-y-5">
 
-            {/* Offres recommandées */}
-            <Card className="border-campus-gray-300 shadow-sm">
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-campus-orange" />Offres pour toi
-                </CardTitle>
-                <Button variant="ghost" size="sm" className="text-xs text-campus-blue hover:bg-campus-blue-50 -mr-2"
-                  onClick={() => router.push('/jobs')}>
-                  Toutes <ArrowRight className="h-3 w-3 ml-1" />
-                </Button>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {loadingJobs ? <SidebarSkeleton /> : recommended.length === 0 ? (
-                  <div className="py-6 text-center">
-                    <Sparkles className="h-8 w-8 text-campus-gray-300 mx-auto mb-2" />
-                    <p className="text-xs text-campus-gray-500">Aucune offre disponible</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {recommended.map((job) => <RecommendedJobCard key={job.id} job={job} />)}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Offres recommandées — hidden for pedagogical staff */}
+            {!isPedagogical && (
+              <Card className="border-campus-gray-300 shadow-sm">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-campus-orange" />Offres pour toi
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" className="text-xs text-campus-blue hover:bg-campus-blue-50 -mr-2"
+                    onClick={() => router.push('/jobs')}>
+                    Toutes <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {loadingJobs ? <SidebarSkeleton /> : recommended.length === 0 ? (
+                    <div className="py-6 text-center">
+                      <Sparkles className="h-8 w-8 text-campus-gray-300 mx-auto mb-2" />
+                      <p className="text-xs text-campus-gray-500">Aucune offre disponible</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {recommended.map((job) => <RecommendedJobCard key={job.id} job={job} />)}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* ✅ Articles récents — remplace "Bientôt disponible" */}
             <Card className="border-campus-gray-300 shadow-sm">
@@ -635,7 +646,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-campus-gray-500">Aucun article publié</p>
                     {isAuthor && (
                       <Button variant="ghost" size="sm" className="mt-2 text-xs text-campus-blue"
-                        onClick={() => router.push('/dashboard/articles/new/edit')}>
+                        onClick={() => router.push('/articles/new/edit')}>
                         <Plus className="h-3 w-3 mr-1" />Rédiger le premier
                       </Button>
                     )}

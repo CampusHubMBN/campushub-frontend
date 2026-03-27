@@ -66,6 +66,7 @@ export function ApplicationForm({
   const [showAdvanced, setShowAdvanced]  = useState(false);
   // ✅ cv: File — champ attendu par l'API (FormData → cv_url après upload)
   const [cvFile, setCvFile]              = useState<File | null>(null);
+  const [cvPreviewUrl, setCvPreviewUrl]  = useState<string | null>(null);
   // ✅ additional_documents: File[] — casté en array JSON côté Laravel
   const [additionalDocs, setAdditionalDocs] = useState<File[]>([]);
   const [charCount, setCharCount]        = useState(0);
@@ -88,7 +89,9 @@ export function ApplicationForm({
     if (!file) return;
     if (file.type !== 'application/pdf') { alert('Seuls les fichiers PDF sont acceptés'); return; }
     if (file.size > 5 * 1024 * 1024)    { alert('Le fichier ne doit pas dépasser 5 Mo'); return; }
+    if (cvPreviewUrl) URL.revokeObjectURL(cvPreviewUrl);
     setCvFile(file);
+    setCvPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,25 +192,35 @@ export function ApplicationForm({
 
         <CardContent className="space-y-3">
           {cvFile ? (
-            <div className="flex items-center gap-3 p-3 bg-campus-blue-50 rounded-lg border border-campus-blue-100">
-              <CheckCircle2 className="h-5 w-5 text-campus-blue flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-campus-blue-800 truncate">{cvFile.name}</p>
-                <p className="text-xs text-campus-blue-500">
-                  {(cvFile.size / 1024 / 1024).toFixed(2)} Mo
-                </p>
+            <>
+              <div className="flex items-center gap-3 p-3 bg-campus-blue-50 rounded-lg border border-campus-blue-100">
+                <CheckCircle2 className="h-5 w-5 text-campus-blue flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-campus-blue-800 truncate">{cvFile.name}</p>
+                  <p className="text-xs text-campus-blue-500">
+                    {(cvFile.size / 1024 / 1024).toFixed(2)} Mo
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCvFile(null);
+                    if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
+                    if (cvInputRef.current) cvInputRef.current.value = '';
+                  }}
+                  className="text-campus-gray-400 hover:text-campus-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCvFile(null);
-                  if (cvInputRef.current) cvInputRef.current.value = '';
-                }}
-                className="text-campus-gray-400 hover:text-campus-gray-700"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+              {cvPreviewUrl && (
+                <iframe
+                  src={cvPreviewUrl}
+                  title="Aperçu du CV"
+                  className="w-full h-96 rounded-lg border border-campus-gray-200 mt-3"
+                />
+              )}
+            </>
           ) : (
             <div
               onClick={() => cvInputRef.current?.click()}

@@ -1,4 +1,4 @@
-// src/app/(protected)/dashboard/articles/[id]/edit/page.tsx
+// src/app/(protected)/articles/[id]/edit/page.tsx
 'use client';
 
 import { use, useEffect, useState } from 'react';
@@ -29,8 +29,8 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-// ✅ Import dynamique — désactive le SSR pour Tiptap
-//    Évite l'erreur "SSR has been detected" de Tiptap
+// Import dynamique — désactive le SSR pour Tiptap
+// Évite l'erreur "SSR has been detected" de Tiptap
 const ArticleEditor = dynamic(
   () => import('@/components/articles/ArticleEditor').then((mod) => mod.ArticleEditor),
   {
@@ -158,7 +158,7 @@ export default function ArticleEditPage({
   // Form
   const {
     register, control, handleSubmit, watch, setValue, reset,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm<ArticleFormValues>({
     resolver: zodResolver(articleFormSchema),
     defaultValues: {
@@ -215,7 +215,7 @@ export default function ArticleEditPage({
     onSuccess: (article) => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
       toast.success(isNew ? 'Article créé !' : 'Article mis à jour !');
-      if (isNew) router.replace(`/dashboard/articles/${article.id}/edit`);
+      if (isNew) router.replace(`/articles/${article.id}/edit`);
     },
     onError: () => toast.error("Erreur lors de l'enregistrement"),
   });
@@ -270,10 +270,6 @@ export default function ArticleEditPage({
     );
   }
 
-  // Juste avant le return, ajoute :
-  console.log('Form errors:', errors);
-  console.log('Form isValid:', isValid);
-
   return (
     <div className="min-h-screen bg-campus-gray-50">
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -310,7 +306,7 @@ export default function ArticleEditPage({
                 <Button
                   type="button" variant="outline" size="sm"
                   className="border-campus-gray-300 text-campus-gray-600"
-                  onClick={() => window.open(`/articles/${existing?.slug}`, '_blank')}
+                  onClick={() => window.open(`/articles/${existing?.id}`, '_blank')}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1.5" />Prévisualiser
                 </Button>
@@ -324,8 +320,7 @@ export default function ArticleEditPage({
                       ? 'border-red-200 text-red-600 hover:bg-red-50'
                       : 'border-green-200 text-green-700 hover:bg-green-50'
                   )}
-                  // onClick={() => publishMutation.mutate()}
-                  onClick={() => console.log('Submit clicked, errors:', errors)}
+                  onClick={() => publishMutation.mutate()}
                   disabled={publishMutation.isPending}
                 >
                   {publishMutation.isPending
