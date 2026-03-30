@@ -7,7 +7,7 @@ import {
 import axios from 'axios';
 
 // Récupérer le CSRFcookie
-const getCsrfToken = async () => {
+export const getCsrfToken = async () => {
   await api.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/sanctum/csrf-cookie`, {
     withCredentials: true,
   });

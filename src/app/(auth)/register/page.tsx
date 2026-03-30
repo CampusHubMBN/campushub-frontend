@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
-import { authApi } from '@/services/api/auth.api';
+import { authApi, getCsrfToken } from '@/services/api/auth.api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -48,13 +48,18 @@ export default function RegisterPage() {
 
   const verifyInvitation = async () => {
     try {
+      await getCsrfToken();
       const result = await invitationsApi.verifyInvitation({ token: token! });
       setInvitationEmail(result.email);
       setInvitationRole(result.role);
       setFormData((prev) => ({ ...prev, email: result.email }));
       setInvitationValid(true);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Invitation invalide');
+      if (!error.response) {
+        toast.error('Impossible de contacter le serveur. Veuillez réessayer.');
+      } else {
+        toast.error(error.response?.data?.message || 'Invitation invalide');
+      }
       setInvitationValid(false);
     } finally {
       setVerifying(false);

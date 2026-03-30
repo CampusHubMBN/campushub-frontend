@@ -300,7 +300,6 @@ export default function DashboardPage() {
     queryKey: ['posts', 'dashboard-recent'],
     queryFn:  () => postsApi.getPosts({ page: 1 }),
     enabled:  mounted && !!user,
-    staleTime: 60 * 1000,
   });
 
   // Brouillons posts de l'auteur
@@ -308,7 +307,6 @@ export default function DashboardPage() {
     queryKey: ['my-posts', 'draft'],
     queryFn:  () => postsApi.getPosts({ mine: true, status: 'draft' }),
     enabled:  mounted && !!user,
-    staleTime: 30 * 1000,
   });
 
   // Articles récents (tous utilisateurs)
@@ -316,7 +314,6 @@ export default function DashboardPage() {
     queryKey: ['articles', 'dashboard-recent'],
     queryFn:  () => articlesApi.getArticles({ page: 1 }),
     enabled:  mounted && !!user,
-    staleTime: 2 * 60 * 1000,
   });
 
   // Brouillons de l'auteur (si auteur uniquement)
@@ -324,7 +321,6 @@ export default function DashboardPage() {
     queryKey: ['my-articles', 'draft'],
     queryFn:  () => articlesApi.getArticles({ mine: true, status: 'draft' } as any),
     enabled:  mounted && !!isAuthor,
-    staleTime: 30 * 1000,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────

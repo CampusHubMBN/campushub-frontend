@@ -2,7 +2,7 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@/lib/zodResolver';
 import { LoginSchema, LoginInput } from '@/schemas/auth.schema';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -97,12 +97,6 @@ export default function LoginPage() {
           </form>
         </Form>
 
-        <p className="text-center text-sm text-gray-600 mt-4">
-          Pas encore de compte ?{' '}
-          <a href="/register" className="text-campus-blue hover:underline font-semibold">
-            S'inscrire
-          </a>
-        </p>
       </div>
     </div>
   );

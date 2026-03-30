@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/services/api/users.api';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ import { storageUrl } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { user, setAuth, updateUserInfo } = useAuthStore();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -71,9 +73,54 @@ export default function ProfilePage() {
     if (!cvFile || !user) return;
     setCvLoading(true);
     try {
+      // 1 — Upload CV to Laravel
       const result = await usersApi.uploadCv(user.id, cvFile);
       updateUserInfo({ cv_url: result.cv_url, profile_completion: result.profile_completion });
-      toast.success('CV uploadé avec succès !');
+
+      // 2 — Parse PDF text via NestJS
+      const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+      const formData = new FormData();
+      formData.append('file', cvFile);
+      const parseRes = await fetch(`${realtimeUrl}/cv-matching/parse`, { method: 'POST', body: formData });
+
+      if (parseRes.ok) {
+        const { rawText } = await parseRes.json();
+
+        // 3 — Extract skills from raw text via NestJS
+        const analyzeRes = await fetch(`${realtimeUrl}/cv-matching/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawText }),
+        });
+
+        if (analyzeRes.ok) {
+          const { skills: extractedSkills } = await analyzeRes.json();
+
+          // 4 — Merge with existing manual skills (deduplicated, lowercase comparison)
+          const existing: string[] = user.info?.skills ?? [];
+          const existingLower = existing.map((s) => s.toLowerCase());
+          const newSkills = (extractedSkills as string[]).filter(
+            (s) => !existingLower.includes(s.toLowerCase()),
+          );
+          const mergedSkills = [...existing, ...newSkills];
+
+          // 5 — Patch profile with merged skills
+          await usersApi.updateUserInfo(user.id, { skills: mergedSkills });
+          updateUserInfo({ skills: mergedSkills });
+          queryClient.invalidateQueries({ queryKey: ['cv-match-scores', user.id] });
+
+          if (newSkills.length > 0) {
+            toast.success(`CV uploadé — ${newSkills.length} compétence(s) ajoutée(s) à votre profil`);
+          } else {
+            toast.success('CV uploadé avec succès !');
+          }
+        } else {
+          toast.success('CV uploadé avec succès !');
+        }
+      } else {
+        toast.success('CV uploadé avec succès !');
+      }
+
       setCvFile(null);
       if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
       if (cvInputRef.current) cvInputRef.current.value = '';
@@ -91,6 +138,7 @@ export default function ProfilePage() {
     try {
       const result = await usersApi.deleteCv(user.id);
       updateUserInfo({ cv_url: null, profile_completion: result.profile_completion });
+      queryClient.invalidateQueries({ queryKey: ['cv-match-scores', user.id] });
       setShowExistingPreview(false);
       toast.success('CV supprimé');
     } catch (error: any) {
@@ -187,9 +235,7 @@ export default function ProfilePage() {
       console.log('updated user', updatedUser);
       if (updatedUser.info) {
         updateUserInfo(updatedUser.info);
-        // update user complet
-        // setAuth(updatedUser);
-        console.log('Profil mis à jour avec succès');
+        queryClient.invalidateQueries({ queryKey: ['cv-match-scores', user.id] });
       }
 
       toast.success('Profil mis à jour avec succès !');

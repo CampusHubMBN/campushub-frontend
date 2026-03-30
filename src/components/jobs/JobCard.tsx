@@ -14,13 +14,25 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
+
+const VIEWER_ROLES = ['admin', 'company', 'pedagogical'];
 
 interface JobCardProps {
   job: Job;
+  matchScore?: number;
 }
 
-export function JobCard({ job }: JobCardProps) {
+function scoreColor(score: number) {
+  if (score >= 70) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (score >= 40) return 'bg-amber-100 text-amber-700 border-amber-200';
+  return 'bg-gray-100 text-gray-500 border-gray-200';
+}
+
+export function JobCard({ job, matchScore }: JobCardProps) {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isViewer = user && VIEWER_ROLES.includes(user.role);
 
   const handleClick = () => {
     if (job.source_type === 'external' && job.external_url) {
@@ -111,10 +123,18 @@ export function JobCard({ job }: JobCardProps) {
             <p className="text-sm text-gray-600 mt-1">{companyName}</p>
           </div>
 
-          {/* External indicator */}
-          {job.source_type === 'external' && (
-            <ExternalLink className="h-4 w-4 text-gray-400" />
-          )}
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {/* External indicator */}
+            {job.source_type === 'external' && (
+              <ExternalLink className="h-4 w-4 text-gray-400" />
+            )}
+            {/* Match score badge — internal offers only, CV required */}
+            {matchScore !== undefined && job.source_type !== 'external' && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${scoreColor(matchScore)}`}>
+                {matchScore}%
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
 
@@ -169,7 +189,12 @@ export function JobCard({ job }: JobCardProps) {
           className="w-full"
           variant={job.source_type === 'external' ? 'outline' : 'default'}
         >
-          {job.source_type === 'external' ? (
+          {isViewer ? (
+            <>
+              <Briefcase className="h-4 w-4 mr-2" />
+              Détails
+            </>
+          ) : job.source_type === 'external' ? (
             <>
               <ExternalLink className="h-4 w-4 mr-2" />
               Voir l'offre

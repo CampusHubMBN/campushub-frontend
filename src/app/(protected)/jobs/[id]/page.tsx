@@ -2,7 +2,7 @@
 'use client';
 
 import { use } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobsApi } from '@/services/api/jobs.api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,11 +16,20 @@ import {
   Building2,
   ExternalLink,
   Loader2,
+  CheckCircle2,
+  XCircle,
+  XOctagon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 
 const APPLICANT_ROLES = ['student', 'alumni', 'bde_member'];
+
+interface MatchDetail {
+  score: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+}
 
 export default function JobDetailPage({
   params,
@@ -29,12 +38,53 @@ export default function JobDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const canApply = !user || APPLICANT_ROLES.includes(user.role);
+  const isApplicant = user && APPLICANT_ROLES.includes(user.role);
+  const hasSkills = (user?.info?.skills?.length ?? 0) > 0;
 
   const { data: job, isLoading, isError } = useQuery({
     queryKey: ['job', id],
     queryFn: () => jobsApi.getJob(id),
+  });
+
+  const { data: matchDetail } = useQuery<MatchDetail | null>({
+    queryKey: ['cv-match-detail', id, user?.id],
+    queryFn: async () => {
+      const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+      const languages: string[] = (user!.info!.languages ?? []).map((l: any) =>
+        typeof l === 'string' ? l : l.language,
+      );
+      const res = await fetch(`${realtimeUrl}/cv-matching/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv: {
+            rawText: '',
+            skills: user!.info!.skills ?? [],
+            experience: [],
+            education: [],
+            languages,
+          },
+        }),
+      });
+      if (!res.ok) return null;
+      const results: { jobOffer: { id: string }; score: number; matchedSkills: string[]; missingSkills: string[] }[] =
+        await res.json();
+      const found = results.find((r) => r.jobOffer.id === id);
+      return found ? { score: found.score, matchedSkills: found.matchedSkills, missingSkills: found.missingSkills } : null;
+    },
+    enabled: !!isApplicant && hasSkills && !!user?.info?.cv_url && job?.source_type !== 'external',
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const closeRecruitmentMutation = useMutation({
+    mutationFn: () => jobsApi.updateJob(id, { status: 'closed' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job', id] });
+      queryClient.invalidateQueries({ queryKey: ['my-posted-jobs'] });
+    },
   });
 
   if (isLoading) {
@@ -61,6 +111,7 @@ export default function JobDetailPage({
   }
 
   const companyName = job.company?.name || job.company_name || 'Entreprise';
+  const isOwner = user && (user.role === 'admin' || job.posted_by?.id === user.id);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -191,6 +242,105 @@ export default function JobDetailPage({
                       Date limite :{' '}
                       {new Date(job.application_deadline).toLocaleDateString('fr-FR')}
                     </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Close recruitment — owner/admin only, published offers */}
+            {isOwner && job.status === 'published' && (
+              <Card className="border-red-200 shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-red-700">Fermer le recrutement</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Les candidats ne pourront plus postuler à cette offre.
+                  </p>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    disabled={closeRecruitmentMutation.isPending}
+                    onClick={() => closeRecruitmentMutation.mutate()}
+                  >
+                    {closeRecruitmentMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <XOctagon className="h-4 w-4 mr-2" />
+                    )}
+                    Fermer l'offre
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Compatibility Card — internal offers + CV uploaded only */}
+            {matchDetail && job.source_type !== 'external' && (
+              <Card className="border-campus-gray-300 shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Compatibilité avec votre profil</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Score bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Score global</span>
+                      <span className={`font-bold text-lg ${
+                        matchDetail.score >= 70 ? 'text-emerald-600' :
+                        matchDetail.score >= 40 ? 'text-amber-600' : 'text-gray-500'
+                      }`}>
+                        {matchDetail.score}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          matchDetail.score >= 70 ? 'bg-emerald-500' :
+                          matchDetail.score >= 40 ? 'bg-amber-400' : 'bg-gray-400'
+                        }`}
+                        style={{ width: `${matchDetail.score}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Matched skills */}
+                  {matchDetail.matchedSkills.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                        Compétences correspondantes
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matchDetail.matchedSkills.map((skill) => (
+                          <span
+                            key={skill}
+                            className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Missing skills */}
+                  {matchDetail.missingSkills.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                        <XCircle className="h-3.5 w-3.5 text-gray-400" />
+                        Compétences à développer
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matchDetail.missingSkills.map((skill) => (
+                          <span
+                            key={skill}
+                            className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>

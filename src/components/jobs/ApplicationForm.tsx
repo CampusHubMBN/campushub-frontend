@@ -3,7 +3,7 @@
 
 import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@/lib/zodResolver';
 import { z } from 'zod';
 import { ApplicationFormData } from '@/types/job-application';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -17,11 +17,18 @@ import { useQuery } from '@tanstack/react-query';
 import { jobsApi } from '@/services/api/jobs.api';
 import { useDebounce } from 'use-debounce';
 import { JobType } from '@/types/job';
+import { useAuthStore } from '@/store/auth.store';
+
+const APPLICANT_ROLES = ['student', 'alumni', 'bde_member'];
 
 export function JobList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<JobType | 'all'>('all');
   const [debouncedSearch] = useDebounce(searchQuery, 500);
+  const { user } = useAuthStore();
+
+  const isApplicant = user && APPLICANT_ROLES.includes(user.role);
+  const hasSkills = (user?.info?.skills?.length ?? 0) > 0;
 
   const {
     data: jobs = [],
@@ -36,6 +43,35 @@ export function JobList() {
         type: typeFilter,
       }),
     placeholderData: (previousData) => previousData,
+  });
+
+  // Fetch match scores once per session when the user has a CV with skills
+  const { data: scoreMap = {} } = useQuery<Record<string, number>>({
+    queryKey: ['cv-match-scores', user?.id],
+    queryFn: async () => {
+      const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+      const languages: string[] = (user!.info!.languages ?? []).map((l: any) =>
+        typeof l === 'string' ? l : l.language,
+      );
+      const res = await fetch(`${realtimeUrl}/cv-matching/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv: {
+            rawText: '',
+            skills: user!.info!.skills ?? [],
+            experience: [],
+            education: [],
+            languages,
+          },
+        }),
+      });
+      if (!res.ok) return {};
+      const results: { jobOffer: { id: string }; score: number }[] = await res.json();
+      return Object.fromEntries(results.map((r) => [r.jobOffer.id, r.score]));
+    },
+    enabled: !!isApplicant && hasSkills && !!user?.info?.cv_url,
+    staleTime: 5 * 60 * 1000,
   });
 
   return (
@@ -112,7 +148,7 @@ export function JobList() {
           {jobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {jobs.map((job) => (
-                <JobCard key={job.id} job={job} />
+                <JobCard key={job.id} job={job} matchScore={scoreMap[job.id]} />
               ))}
             </div>
           ) : (
