@@ -23,15 +23,14 @@ export function Navbar() {
   const pathname = usePathname();
 
   const homeItem = !mounted || !user ? { label: 'Dashboard', href: '/jobs' }
-    : user.role === 'admin'   ? { label: 'Administration',  href: '/admin'      }
-    : user.role === 'company' ? { label: 'Recrutement',     href: '/recruiter'  }
+    : user.role === 'admin'       ? { label: 'Administration',  href: '/admin'      }
+    : user.role === 'company'     ? { label: 'Recrutement',  href: '/recruiter'   }
+    : user.role === 'pedagogical' ? { label: 'Mon espace',   href: '/pedagogical' }
     : { label: 'Dashboard', href: '/dashboard' };
 
-  // Company sees only Jobs + Events; pedagogical sees everything except Jobs
+  // Company sees only Jobs + Events; all other roles see all nav items
   const visibleNavItems = mounted && user?.role === 'company'
     ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
-    : mounted && user?.role === 'pedagogical'
-    ? navItems.filter((i) => i.href !== '/jobs')
     : navItems;
 
   const allNavItems = [
@@ -39,7 +38,7 @@ export function Navbar() {
       ? [{ ...homeItem, icon: LayoutDashboard }]
       : []),
     ...visibleNavItems,
-    // Recrutement only for admin (company's home IS /recruiter already shown as Dashboard)
+    // Recrutement link for admin only (company's home IS /recruiter, pedagogical has its own dashboard)
     ...(mounted && user?.role === 'admin'
       ? [{ label: 'Recrutement', href: '/recruiter', icon: Users }]
       : []),
@@ -101,14 +100,13 @@ function MobileNav() {
   const mounted = useMounted();
 
   const homeHref = !mounted || !user ? '/jobs'
-    : user.role === 'admin'   ? '/admin'
-    : user.role === 'company' ? '/recruiter'
+    : user.role === 'admin'       ? '/admin'
+    : user.role === 'company'     ? '/recruiter'
+    : user.role === 'pedagogical' ? '/pedagogical'
     : '/dashboard';
 
   const visibleNavItems = mounted && user?.role === 'company'
     ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
-    : mounted && user?.role === 'pedagogical'
-    ? navItems.filter((i) => i.href !== '/jobs')
     : navItems;
 
   return (
@@ -141,7 +139,7 @@ function MobileNav() {
           <LayoutDashboard className="h-5 w-5" />
           <span className="text-xs font-medium">Accueil</span>
         </Link>
-        {/* Recrutement only for admin — company's Dashboard already points to /recruiter */}
+        {/* Recrutement for admin only — company's Dashboard already points to /recruiter, pedagogical has its own */}
         {mounted && user?.role === 'admin' && (
           <Link
             href="/recruiter"

@@ -368,6 +368,13 @@ export default function JobDetailPage({
                   </div>
                 )}
 
+                {job.hours_per_week && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    <span>{job.hours_per_week}h / semaine</span>
+                  </div>
+                )}
+
                 {(job.salary_min || job.salary_max) && (
                   <div className="flex items-center gap-2">
                     <Euro className="h-4 w-4 text-gray-400" />

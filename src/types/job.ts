@@ -1,5 +1,5 @@
 // src/types/job.ts
-export type JobType = 'internship' | 'apprenticeship' | 'cdd' | 'cdi' | 'freelance';
+export type JobType = 'internship' | 'apprenticeship' | 'cdd' | 'cdi' | 'freelance' | 'student_job';
 export type LocationType = 'onsite' | 'remote' | 'hybrid';
 export type JobStatus = 'draft' | 'published' | 'closed' | 'filled';
 export type SourceType = 'internal' | 'external';
@@ -32,6 +32,7 @@ export interface Job {
   salary_currency: string;
   
   duration_months: number | null;
+  hours_per_week: number | null;
   start_date: string | null;
   
   application_url: string | null;

@@ -20,7 +20,7 @@ import { fr } from 'date-fns/locale';
 
 const JOB_TYPE_LABELS: Record<string, string> = {
   internship: 'Stage', apprenticeship: 'Alternance',
-  cdd: 'CDD', cdi: 'CDI', freelance: 'Freelance',
+  cdd: 'CDD', cdi: 'CDI', freelance: 'Freelance', student_job: 'Job étudiant',
 };
 
 const JOB_STATUS_STYLES: Record<string, string> = {
@@ -156,7 +156,7 @@ export default function RecruiterDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user && user.role !== 'company' && user.role !== 'admin') {
+    if (user && !['company', 'admin', 'pedagogical'].includes(user.role)) {
       router.replace('/dashboard');
     }
   }, [user, router]);

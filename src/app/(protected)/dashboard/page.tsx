@@ -531,13 +531,13 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-1 -mr-2">
                     <Button variant="ghost" size="sm"
                       className="text-xs text-campus-blue hover:bg-campus-blue-50"
-                      onClick={() => router.push('/dashboard/blog')}
+                      onClick={() => router.push('/blog')}
                     >
                       Gérer <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                     <Button size="sm"
                       className="bg-campus-blue hover:bg-campus-blue-600 text-white h-7 px-2 text-xs gap-1"
-                      onClick={() => router.push('/dashboard/blog/new/edit')}
+                      onClick={() => router.push('/blog/new/edit')}
                     >
                       <Plus className="h-3 w-3" />Nouveau
                     </Button>
@@ -555,13 +555,13 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                          <button onClick={() => router.push(`/dashboard/blog/${post.id}/edit`)}
+                          <button onClick={() => router.push(`/blog/${post.id}/edit`)}
                             className="h-6 w-6 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50">
                             <Pencil className="h-3 w-3" />
                           </button>
                           <button
-                            onClick={() => publishMutation.mutate(post.id)}
-                            disabled={publishMutation.isPending}
+                            onClick={() => publishPostMutation.mutate(post.id)}
+                            disabled={publishPostMutation.isPending && publishPostMutation.variables === post.id}
                             className="h-6 px-2 flex items-center gap-1 rounded text-xs text-green-600 border border-green-200 hover:bg-green-50"
                           >
                             <ToggleRight className="h-3 w-3" />Publier

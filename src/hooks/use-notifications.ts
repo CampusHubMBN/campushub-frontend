@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useQuery, useSubscription } from '@apollo/client/react';
+import { useQuery, useSubscription, useApolloClient } from '@apollo/client/react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNotificationStore, NotificationItem } from '@/store/notification.store';
 import {
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 export function useNotifications() {
   const { user, isAuthenticated } = useAuthStore();
+  const apolloClient = useApolloClient();
 
   // Only destructure write actions — never read reactive values here.
   // Reading would cause this component (NotificationInitializer) to re-render
@@ -69,7 +70,22 @@ export function useNotifications() {
     skip,
     onData: ({ data }) => {
       const update = data.data?.unreadCountUpdated;
-      if (update) setUnreadCount(update.count);
+      if (!update) return;
+      const prevCount = useNotificationStore.getState().unreadCount;
+      setUnreadCount(update.count);
+      // Safety net: if count went up and NOTIFICATION_ADDED didn't update the
+      // list (e.g. GraphQL resolver failed silently), force-refresh the list.
+      if (update.count > prevCount) {
+        apolloClient.query({
+          query: MY_NOTIFICATIONS,
+          variables: { page: 1, unreadOnly: false },
+          fetchPolicy: 'network-only',
+        }).then(({ data: fresh }) => {
+          if (fresh) {
+            setNotifications(fresh.myNotifications.notifications, fresh.myNotifications.unreadCount);
+          }
+        }).catch(() => {/* ignore */});
+      }
     },
   });
 }

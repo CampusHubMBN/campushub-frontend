@@ -39,6 +39,7 @@ export default function CreateJobPage() {
     salary_max: '',
     salary_period: 'monthly',
     duration_months: '',
+    hours_per_week: '',
     start_date: '',
     application_deadline: '',
     application_email: '',
@@ -50,11 +51,11 @@ export default function CreateJobPage() {
     status: 'draft',
   });
 
-  // Admin needs the company list to pick one
+  // Admin/pedagogical need the company list to pick one
   const { data: companiesData } = useQuery({
     queryKey: ['companies-list'],
     queryFn: () => companiesApi.getCompanies(),
-    enabled: user?.role === 'admin',
+    enabled: user?.role === 'admin' || user?.role === 'pedagogical',
   });
   const companies = companiesData ?? [];
 
@@ -89,6 +90,7 @@ export default function CreateJobPage() {
       salary_max:       form.salary_max ? Number(form.salary_max) : undefined,
       salary_period:    form.salary_period || undefined,
       duration_months:  form.duration_months ? Number(form.duration_months) : undefined,
+      hours_per_week:   form.hours_per_week ? Number(form.hours_per_week) : undefined,
       start_date:       form.start_date || undefined,
       application_deadline: form.application_deadline || undefined,
       source_type:      sourceType,
@@ -106,7 +108,7 @@ export default function CreateJobPage() {
     createJob(payload);
   };
 
-  if (!user || !['admin', 'company'].includes(user.role)) {
+  if (!user || !['admin', 'company', 'pedagogical'].includes(user.role)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-gray-500">Accès non autorisé.</p>
@@ -196,6 +198,7 @@ export default function CreateJobPage() {
                     <SelectItem value="cdd">CDD</SelectItem>
                     <SelectItem value="cdi">CDI</SelectItem>
                     <SelectItem value="freelance">Freelance</SelectItem>
+                    <SelectItem value="student_job">Job étudiant</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -238,7 +241,7 @@ export default function CreateJobPage() {
             </div>
 
             {/* Company — internal only */}
-            {sourceType === 'internal' && user.role === 'admin' && (
+            {sourceType === 'internal' && (user.role === 'admin' || user.role === 'pedagogical') && (
               <div>
                 <Label htmlFor="company_id">Entreprise *</Label>
                 <Select value={form.company_id} onValueChange={(v) => set('company_id', v)}>
@@ -389,6 +392,25 @@ export default function CreateJobPage() {
                 />
               </div>
             </div>
+
+            {form.type === 'student_job' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="hours_per_week">Heures / semaine <span className="text-gray-400 font-normal">(max 21h)</span></Label>
+                  <Input
+                    id="hours_per_week"
+                    type="number"
+                    min={1}
+                    max={21}
+                    value={form.hours_per_week}
+                    onChange={(e) => set('hours_per_week', e.target.value)}
+                    placeholder="21"
+                    className="mt-1.5"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Réglementation française : 21h max/semaine pour les étudiants</p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

@@ -48,6 +48,9 @@ export default function ProtectedLayout({
         if (userData.role === 'company' && pathname === '/dashboard') {
           router.replace('/recruiter');
         }
+        if (userData.role === 'pedagogical' && pathname === '/dashboard') {
+          router.replace('/pedagogical');
+        }
         // Company cannot access articles or blog
         if (
           userData.role === 'company' &&

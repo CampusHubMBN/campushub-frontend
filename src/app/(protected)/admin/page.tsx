@@ -8,7 +8,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, AdminUser } from '@/services/api/admin.api';
 import { invitationsApi } from '@/services/api/invitation.api';
 import { postsApi } from '@/services/api/posts.api';
+import { companiesApi } from '@/services/api/companies.api';
 import { Invitation, UserRole } from '@/types/api';
+import { Company, CompanySize } from '@/types/company';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,7 +31,7 @@ import {
   Shield, Users, Mail, BookOpen, MessageSquare, TrendingUp,
   UserPlus, Search, Ban, CheckCircle, XCircle, Clock, Copy,
   RefreshCw, Trash2, Pencil, Eye, Plus, Tag, LayoutGrid,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Building2, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { storageUrl } from '@/lib/utils';
@@ -61,6 +63,7 @@ const TABS = [
   { key: 'users',       label: 'Utilisateurs',    icon: Users        },
   { key: 'invitations', label: 'Invitations',     icon: Mail         },
   { key: 'categories',  label: 'Catégories',      icon: LayoutGrid   },
+  { key: 'companies',   label: 'Entreprises',     icon: Building2    },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
@@ -145,6 +148,7 @@ export default function AdminPage() {
         {activeTab === 'users'       && <UsersTab />}
         {activeTab === 'invitations' && <InvitationsTab />}
         {activeTab === 'categories'  && <CategoriesTab />}
+        {activeTab === 'companies'   && <CompaniesTab />}
       </div>
     </div>
   );
@@ -814,6 +818,296 @@ function CategoriesTab() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPANIES TAB
+// ─────────────────────────────────────────────────────────────────────────────
+const SIZES: CompanySize[] = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1001+'];
+
+const BLANK_FORM = {
+  name: '', siret: '', website: '', linkedin_url: '', description: '',
+  industry: '', size: '' as CompanySize | '',
+  headquarters_city: '', headquarters_country: 'France',
+  is_partner: false, is_verified: false,
+};
+
+function CompaniesTab() {
+  const queryClient = useQueryClient();
+  const [search, setSearch]       = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing]     = useState<Company | null>(null);
+  const [form, setForm]           = useState({ ...BLANK_FORM });
+  const [logoFile, setLogoFile]   = useState<File | null>(null);
+
+  const { data: companies = [], isLoading } = useQuery({
+    queryKey: ['admin-companies', search],
+    queryFn: () => companiesApi.getCompanies({ search: search || undefined }),
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-companies'] });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const fd = new FormData();
+      Object.entries(form).forEach(([k, v]) => {
+        if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
+      });
+      if (logoFile) fd.append('logo', logoFile);
+      if (editing) return companiesApi.updateCompany(editing.id, fd);
+      return companiesApi.createCompany(fd);
+    },
+    onSuccess: () => {
+      toast.success(editing ? 'Entreprise mise à jour' : 'Entreprise créée');
+      invalidate();
+      closeModal();
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: companiesApi.deleteCompany,
+    onSuccess: () => { toast.success('Entreprise supprimée'); invalidate(); },
+    onError: (err: any) => toast.error(err?.response?.data?.message ?? 'Impossible de supprimer'),
+  });
+
+  const togglePartnerMutation = useMutation({
+    mutationFn: companiesApi.togglePartner,
+    onSuccess: () => invalidate(),
+    onError: () => toast.error('Erreur'),
+  });
+
+  const toggleVerifiedMutation = useMutation({
+    mutationFn: companiesApi.toggleVerified,
+    onSuccess: () => invalidate(),
+    onError: () => toast.error('Erreur'),
+  });
+
+  const openCreate = () => { setEditing(null); setForm({ ...BLANK_FORM }); setLogoFile(null); setShowModal(true); };
+  const openEdit   = (c: Company) => {
+    setEditing(c);
+    setForm({
+      name: c.name, siret: c.siret ?? '', website: c.website ?? '',
+      linkedin_url: c.linkedin_url ?? '', description: c.description ?? '',
+      industry: c.industry ?? '', size: c.size ?? '',
+      headquarters_city: c.headquarters_city ?? '',
+      headquarters_country: c.headquarters_country ?? 'France',
+      is_partner: c.is_partner, is_verified: c.is_verified,
+    });
+    setLogoFile(null);
+    setShowModal(true);
+  };
+  const closeModal = () => { setShowModal(false); setEditing(null); setLogoFile(null); };
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-campus-gray-400" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher une entreprise..." className="pl-9 border-campus-gray-300 h-9 text-sm" />
+        </div>
+        <Button size="sm" className="bg-campus-blue hover:bg-campus-blue-600 text-white gap-1.5" onClick={openCreate}>
+          <Plus className="h-3.5 w-3.5" />Ajouter
+        </Button>
+      </div>
+
+      {/* Table */}
+      <Card className="border-campus-gray-300 shadow-sm overflow-hidden">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 bg-campus-gray-200 rounded" />)}
+            </div>
+          ) : companies.length === 0 ? (
+            <div className="py-12 text-center text-campus-gray-400 text-sm">Aucune entreprise trouvée</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-campus-gray-50 border-campus-gray-200">
+                  <TableHead className="text-xs font-semibold text-campus-gray-600">Entreprise</TableHead>
+                  <TableHead className="text-xs font-semibold text-campus-gray-600">Secteur</TableHead>
+                  <TableHead className="text-xs font-semibold text-campus-gray-600">Offres</TableHead>
+                  <TableHead className="text-xs font-semibold text-campus-gray-600">Statut</TableHead>
+                  <TableHead className="text-xs font-semibold text-campus-gray-600 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {companies.map((c) => (
+                  <TableRow key={c.id} className="border-campus-gray-100 hover:bg-campus-gray-50">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {c.logo_url ? (
+                          <img src={storageUrl(c.logo_url)} alt={c.name}
+                            className="h-8 w-8 rounded-lg object-contain border border-campus-gray-200 bg-white flex-shrink-0" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-lg bg-campus-gray-100 border border-campus-gray-200 flex items-center justify-center flex-shrink-0">
+                            <Building2 className="h-4 w-4 text-campus-gray-400" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-campus-gray-900">{c.name}</p>
+                          {c.headquarters_city && (
+                            <p className="text-xs text-campus-gray-400">{c.headquarters_city}</p>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-campus-gray-600">{c.industry ?? '—'}</TableCell>
+                    <TableCell>
+                      <span className="text-sm text-campus-gray-700">{c.active_jobs} actives</span>
+                      <span className="text-xs text-campus-gray-400 ml-1">/ {c.jobs_posted} total</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button onClick={() => toggleVerifiedMutation.mutate(c.id)} title="Vérifiée"
+                          className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium transition-colors',
+                            c.is_verified
+                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                              : 'bg-campus-gray-100 text-campus-gray-500 border-campus-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
+                          )}>
+                          <CheckCircle className="h-3 w-3" />
+                          {c.is_verified ? 'Vérifiée' : 'Non vérif.'}
+                        </button>
+                        <button onClick={() => togglePartnerMutation.mutate(c.id)} title="Partenaire"
+                          className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium transition-colors',
+                            c.is_partner
+                              ? 'bg-campus-blue-50 text-campus-blue border-campus-blue-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                              : 'bg-campus-gray-100 text-campus-gray-500 border-campus-gray-300 hover:bg-campus-blue-50 hover:text-campus-blue hover:border-campus-blue-200'
+                          )}>
+                          <Tag className="h-3 w-3" />
+                          {c.is_partner ? 'Partenaire' : 'Non part.'}
+                        </button>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(c)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-campus-gray-400 hover:text-campus-blue hover:bg-campus-blue-50">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => window.confirm(`Supprimer "${c.name}" ?`) && deleteMutation.mutate(c.id)}
+                          disabled={c.active_jobs > 0}
+                          title={c.active_jobs > 0 ? 'Offres actives — impossible de supprimer' : 'Supprimer'}
+                          className="h-7 w-7 flex items-center justify-center rounded text-campus-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal create/edit */}
+      <Dialog open={showModal} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Modifier l\'entreprise' : 'Nouvelle entreprise'}</DialogTitle>
+            <DialogDescription>
+              {editing ? 'Modifiez les informations de l\'entreprise.' : 'Renseignez les informations de la nouvelle entreprise.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Logo */}
+            <div>
+              <Label className="text-xs font-medium text-campus-gray-700">Logo</Label>
+              <div className="flex items-center gap-3 mt-1">
+                {(logoFile || editing?.logo_url) && (
+                  <img
+                    src={logoFile ? URL.createObjectURL(logoFile) : storageUrl(editing!.logo_url!)}
+                    alt="logo" className="h-12 w-12 rounded-lg object-contain border border-campus-gray-200 bg-white"
+                  />
+                )}
+                <label className="cursor-pointer px-3 py-1.5 text-xs border border-campus-gray-300 rounded-lg text-campus-gray-600 hover:bg-campus-gray-50">
+                  {logoFile ? logoFile.name : 'Choisir un fichier'}
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={(e) => e.target.files?.[0] && setLogoFile(e.target.files[0])} />
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label className="text-xs font-medium text-campus-gray-700">Nom *</Label>
+                <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  className="mt-1 border-campus-gray-300 h-9 text-sm" placeholder="Nom de l'entreprise" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-campus-gray-700">SIRET</Label>
+                <Input value={form.siret} onChange={(e) => setForm((p) => ({ ...p, siret: e.target.value }))}
+                  className="mt-1 border-campus-gray-300 h-9 text-sm" placeholder="12345678901234" maxLength={14} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-campus-gray-700">Secteur</Label>
+                <Input value={form.industry} onChange={(e) => setForm((p) => ({ ...p, industry: e.target.value }))}
+                  className="mt-1 border-campus-gray-300 h-9 text-sm" placeholder="Tech, Finance…" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-campus-gray-700">Taille</Label>
+                <Select value={form.size} onValueChange={(v) => setForm((p) => ({ ...p, size: v as CompanySize }))}>
+                  <SelectTrigger className="mt-1 border-campus-gray-300 h-9 text-sm">
+                    <SelectValue placeholder="Taille" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SIZES.map((s) => <SelectItem key={s} value={s}>{s} employés</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-campus-gray-700">Ville</Label>
+                <Input value={form.headquarters_city} onChange={(e) => setForm((p) => ({ ...p, headquarters_city: e.target.value }))}
+                  className="mt-1 border-campus-gray-300 h-9 text-sm" placeholder="Paris" />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs font-medium text-campus-gray-700">Site web</Label>
+                <Input value={form.website} onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))}
+                  className="mt-1 border-campus-gray-300 h-9 text-sm" placeholder="https://..." />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs font-medium text-campus-gray-700">LinkedIn</Label>
+                <Input value={form.linkedin_url} onChange={(e) => setForm((p) => ({ ...p, linkedin_url: e.target.value }))}
+                  className="mt-1 border-campus-gray-300 h-9 text-sm" placeholder="https://linkedin.com/company/..." />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs font-medium text-campus-gray-700">Description</Label>
+                <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  rows={3} placeholder="Présentation de l'entreprise..."
+                  className="mt-1 w-full border border-campus-gray-300 rounded-lg text-sm px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-campus-blue focus:border-transparent" />
+              </div>
+            </div>
+
+            {/* Toggles */}
+            <div className="flex items-center gap-6 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.is_verified} onChange={(e) => setForm((p) => ({ ...p, is_verified: e.target.checked }))}
+                  className="h-4 w-4 accent-campus-blue rounded" />
+                <span className="text-sm text-campus-gray-700">Vérifiée</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.is_partner} onChange={(e) => setForm((p) => ({ ...p, is_partner: e.target.checked }))}
+                  className="h-4 w-4 accent-campus-blue rounded" />
+                <span className="text-sm text-campus-gray-700">Partenaire</span>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-campus-gray-100">
+              <Button variant="ghost" size="sm" onClick={closeModal}>Annuler</Button>
+              <Button size="sm" className="bg-campus-blue hover:bg-campus-blue-600 text-white"
+                onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>
+                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? 'Mettre à jour' : 'Créer'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

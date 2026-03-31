@@ -102,6 +102,7 @@ export function JobList() {
               <SelectItem value="cdd">CDD</SelectItem>
               <SelectItem value="cdi">CDI</SelectItem>
               <SelectItem value="freelance">Freelance</SelectItem>
+              <SelectItem value="student_job">Job étudiant</SelectItem>
             </SelectContent>
           </Select>
 

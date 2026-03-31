@@ -418,7 +418,7 @@ export default function PostEditPage({
             </Button>
 
             <div className="flex items-center gap-2">
-              {(!isNew || savedPostId) && !isPublished && (
+              {!isPublished && (
                 <Button
                   type="button"
                   variant="outline"
@@ -428,7 +428,7 @@ export default function PostEditPage({
                   disabled={saveMutation.isPending}
                 >
                   <ToggleRight className="h-3.5 w-3.5 mr-1.5" />
-                  Enregistrer et publier
+                  {isNew ? 'Créer et publier' : 'Enregistrer et publier'}
                 </Button>
               )}
               <Button type="submit" size="sm"
