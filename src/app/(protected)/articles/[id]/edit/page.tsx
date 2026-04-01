@@ -184,7 +184,10 @@ export default function ArticleEditPage({
         is_published:        existing.is_published,
         is_featured:         existing.is_featured,
         changelog:           existing.changelog ?? '',
-        timeline:            existing.timeline ?? [],
+        timeline:            (existing.timeline ?? []).map((s) => ({
+          ...s,
+          estimated_duration: s.estimated_duration ?? undefined,
+        })),
         related_links:       existing.related_links ?? [],
       });
       setContent(existing.content);
@@ -250,7 +253,10 @@ export default function ArticleEditPage({
       is_published:  values.is_published,
       is_featured:   values.is_featured,
       changelog:     values.changelog || null,
-      timeline:      values.timeline.length > 0 ? values.timeline : null,
+      timeline:      values.timeline.length > 0 ? values.timeline.map((s) => ({
+        ...s,
+        estimated_duration: s.estimated_duration ?? null,
+      })) : null,
       related_links: values.related_links.length > 0 ? values.related_links : null,
     };
 

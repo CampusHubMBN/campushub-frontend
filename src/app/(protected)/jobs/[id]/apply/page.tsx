@@ -396,8 +396,8 @@ export default function JobApplyPage({
 
         {/* Form */}
         <ApplicationForm
-          onSubmit={applyMutation.mutateAsync}
-          onCvProfileUpdate={updateCvMutation.mutateAsync}
+          onSubmit={(data) => applyMutation.mutateAsync(data).then(() => {})}
+          onCvProfileUpdate={(file) => updateCvMutation.mutateAsync(file).then(() => {})}
           defaultCvUrl={user.info?.cv_url}
           currentScore={currentScore}
           userSkills={user.info?.skills ?? []}

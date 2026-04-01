@@ -1,7 +1,7 @@
 // src/app/(auth)/register/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, getCsrfToken } from '@/services/api/auth.api';
@@ -15,7 +15,7 @@ import { Loader2, CheckCircle, XCircle, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { invitationsApi } from '@/services/api/invitation.api';
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
@@ -267,5 +267,13 @@ export default function RegisterPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

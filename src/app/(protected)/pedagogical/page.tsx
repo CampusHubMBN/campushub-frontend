@@ -106,7 +106,7 @@ export default function PedagogicalDashboard() {
     onError: () => toast.error('Erreur lors de la publication'),
   });
 
-  const jobs: Job[] = jobsData?.data ?? [];
+  const jobs: Job[] = jobsData ?? [];
   const publishedJobs  = jobs.filter((j) => j.status === 'published');
   const draftJobs      = jobs.filter((j) => j.status === 'draft');
   const totalApps      = jobs.reduce((sum, j) => sum + (j.applications_count ?? 0), 0);

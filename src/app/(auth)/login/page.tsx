@@ -1,6 +1,7 @@
 // src/app/login/page.tsx
 'use client';
 
+import { Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@/lib/zodResolver';
 import { LoginSchema, LoginInput } from '@/schemas/auth.schema';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-export default function LoginPage() {
+function LoginForm() {
   const { login, isLoggingIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,5 +100,13 @@ export default function LoginPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

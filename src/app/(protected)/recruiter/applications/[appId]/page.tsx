@@ -94,12 +94,9 @@ export default function ApplicationDetailPage() {
     queryKey: ['application', appId],
     queryFn: () => jobApplicationsApi.getApplication(appId),
     enabled: !!appId,
-    onSuccess: (data: JobApplication) => {
-      setNotes(data.notes ?? '');
-    },
   });
 
-  const { mutate: updateStatus, isLoading: updating } = useMutation({
+  const { mutate: updateStatus, isPending: updating } = useMutation({
     mutationFn: (payload: UpdateStatusPayload) =>
       jobApplicationsApi.updateApplicationStatus(appId, payload),
     onSuccess: (updated) => {

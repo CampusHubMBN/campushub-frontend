@@ -37,10 +37,8 @@ export function useNotifications() {
 
   useEffect(() => {
     if (data) {
-      setNotifications(
-        data.myNotifications.notifications,
-        data.myNotifications.unreadCount
-      );
+      const d = data as any;
+      setNotifications(d.myNotifications.notifications, d.myNotifications.unreadCount);
     }
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -55,7 +53,7 @@ export function useNotifications() {
   useSubscription(NOTIFICATION_ADDED, {
     skip,
     onData: ({ data }) => {
-      const notification: NotificationItem = data.data?.notificationAdded;
+      const notification: NotificationItem = (data.data as any)?.notificationAdded;
       if (!notification) return;
       prependNotification(notification);
       toast(notification.data.message, {
@@ -69,7 +67,7 @@ export function useNotifications() {
   useSubscription(UNREAD_COUNT_UPDATED, {
     skip,
     onData: ({ data }) => {
-      const update = data.data?.unreadCountUpdated;
+      const update = (data.data as any)?.unreadCountUpdated;
       if (!update) return;
       const prevCount = useNotificationStore.getState().unreadCount;
       setUnreadCount(update.count);
@@ -82,7 +80,8 @@ export function useNotifications() {
           fetchPolicy: 'network-only',
         }).then(({ data: fresh }) => {
           if (fresh) {
-            setNotifications(fresh.myNotifications.notifications, fresh.myNotifications.unreadCount);
+            const f = fresh as any;
+            setNotifications(f.myNotifications.notifications, f.myNotifications.unreadCount);
           }
         }).catch(() => {/* ignore */});
       }
