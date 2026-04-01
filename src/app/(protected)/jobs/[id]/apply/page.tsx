@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobsApi } from '@/services/api/jobs.api';
 import { jobApplicationsApi } from '@/services/api/job-applications.api';
+import { usersApi } from '@/services/api/users.api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -131,6 +132,49 @@ export default function JobApplyPage({
     queryFn:  () => jobsApi.getJob(id),
     enabled:  !!user,
     retry:    1,
+  });
+
+  // Fetch current match score for this job (if user has skills + CV)
+  const hasSkills   = (user?.info?.skills?.length ?? 0) > 0;
+  const APPLICANT_ROLES = ['student', 'alumni', 'bde_member'];
+  const isApplicant = user && APPLICANT_ROLES.includes(user.role);
+
+  const { data: scoreMap = {} } = useQuery<Record<string, number>>({
+    queryKey: ['cv-match-scores', user?.id],
+    queryFn: async () => {
+      const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+      const languages: string[] = (user!.info!.languages ?? []).map((l: any) =>
+        typeof l === 'string' ? l : l.language,
+      );
+      const res = await fetch(`${realtimeUrl}/cv-matching/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv: {
+            rawText: '',
+            skills: user!.info!.skills ?? [],
+            experience: [],
+            education: [],
+            languages,
+          },
+        }),
+      });
+      if (!res.ok) return {};
+      const results: { jobOffer: { id: string }; score: number }[] = await res.json();
+      return Object.fromEntries(results.map((r) => [r.jobOffer.id, r.score]));
+    },
+    enabled: !!isApplicant && hasSkills && !!user?.info?.cv_url,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const currentScore = scoreMap[id];
+
+  // Profile CV update mutation
+  const updateCvMutation = useMutation({
+    mutationFn: (file: File) => usersApi.uploadCv(user!.id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cv-match-scores'] });
+    },
   });
 
   // Apply mutation
@@ -353,7 +397,14 @@ export default function JobApplyPage({
         {/* Form */}
         <ApplicationForm
           onSubmit={applyMutation.mutateAsync}
+          onCvProfileUpdate={updateCvMutation.mutateAsync}
           defaultCvUrl={user.info?.cv_url}
+          currentScore={currentScore}
+          userSkills={user.info?.skills ?? []}
+          userLanguages={(user.info?.languages ?? []).map((l: any) =>
+            typeof l === 'string' ? l : l.language
+          )}
+          jobId={id}
           loading={applyMutation.isPending}
         />
 

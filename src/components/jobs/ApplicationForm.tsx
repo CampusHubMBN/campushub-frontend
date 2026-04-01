@@ -12,17 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  FileText,
-  Upload,
-  Link,
-  Calendar,
-  Euro,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  X,
-  CheckCircle2,
-  Paperclip,
+  FileText, Upload, Link, Calendar, Euro,
+  ChevronDown, ChevronUp, Loader2, X, CheckCircle2,
+  Paperclip, TrendingUp, TrendingDown, Minus, Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +25,6 @@ const applicationSchema = z.object({
     .string()
     .min(100, 'La lettre de motivation doit faire au moins 100 caractères')
     .max(3000, 'Maximum 3 000 caractères'),
-  // Champs extra — à activer si ton JobApplicationController les accepte
   portfolio_url:      z.string().url('URL invalide').optional().or(z.literal('')),
   availability_date:  z.string().optional(),
   salary_expectation: z.coerce.number().min(0).optional().or(z.literal('')),
@@ -41,10 +33,23 @@ const applicationSchema = z.object({
 
 type FormValues = z.infer<typeof applicationSchema>;
 
+type ScoringState = 'idle' | 'parsing' | 'analyzing' | 'matching' | 'done' | 'error';
+
+interface MatchResult {
+  score: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+}
+
 interface ApplicationFormProps {
-  onSubmit: (data: ApplicationFormData) => Promise<void>;
-  defaultCvUrl?: string | null;  // cv_url du profil (info seulement)
-  loading?: boolean;
+  onSubmit:            (data: ApplicationFormData) => Promise<void>;
+  onCvProfileUpdate?:  (file: File) => Promise<void>;
+  defaultCvUrl?:       string | null;
+  currentScore?:       number;
+  userSkills?:         string[];
+  userLanguages?:      string[];
+  jobId:               string;
+  loading?:            boolean;
 }
 
 const COVER_LETTER_TEMPLATE = `Madame, Monsieur,
@@ -58,20 +63,36 @@ Disponible à partir du [date], je serais ravi(e) de vous rencontrer pour un ent
 Cordialement,
 [Votre prénom et nom]`;
 
+// ─── Score badge helper ────────────────────────────────────────────────────────
+function scoreBadgeClass(score: number) {
+  if (score >= 70) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (score >= 40) return 'bg-amber-100 text-amber-700 border-amber-200';
+  return 'bg-gray-100 text-gray-500 border-gray-200';
+}
+
 export function ApplicationForm({
   onSubmit,
+  onCvProfileUpdate,
   defaultCvUrl,
+  currentScore,
+  userSkills   = [],
+  userLanguages = [],
+  jobId,
   loading = false,
 }: ApplicationFormProps) {
-  const [showAdvanced, setShowAdvanced]  = useState(false);
-  // ✅ cv: File — champ attendu par l'API (FormData → cv_url après upload)
-  const [cvFile, setCvFile]              = useState<File | null>(null);
-  const [cvPreviewUrl, setCvPreviewUrl]  = useState<string | null>(null);
-  // ✅ additional_documents: File[] — casté en array JSON côté Laravel
+  const [showAdvanced, setShowAdvanced]    = useState(false);
+  const [cvFile, setCvFile]                = useState<File | null>(null);
+  const [cvPreviewUrl, setCvPreviewUrl]    = useState<string | null>(null);
   const [additionalDocs, setAdditionalDocs] = useState<File[]>([]);
-  const [charCount, setCharCount]        = useState(0);
-  const cvInputRef                       = useRef<HTMLInputElement>(null);
-  const docsInputRef                     = useRef<HTMLInputElement>(null);
+  const [charCount, setCharCount]          = useState(0);
+  const [updateProfile, setUpdateProfile]  = useState(false);
+
+  // ── CV scoring state ────────────────────────────────────────────────────────
+  const [scoringState, setScoringState]    = useState<ScoringState>('idle');
+  const [newMatch, setNewMatch]            = useState<MatchResult | null>(null);
+
+  const cvInputRef   = useRef<HTMLInputElement>(null);
+  const docsInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -83,6 +104,62 @@ export function ApplicationForm({
     mode: 'onChange',
   });
 
+  // ── CV scoring pipeline ────────────────────────────────────────────────────
+  const scoreNewCv = async (file: File) => {
+    const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+    setScoringState('parsing');
+    setNewMatch(null);
+
+    try {
+      // 1. Parse PDF → rawText
+      const formData = new FormData();
+      formData.append('file', file);
+      const parseRes = await fetch(`${realtimeUrl}/cv-matching/parse`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!parseRes.ok) throw new Error('parse_failed');
+      const { rawText } = await parseRes.json();
+
+      // 2. Analyze text → skills + languages
+      setScoringState('analyzing');
+      const analyzeRes = await fetch(`${realtimeUrl}/cv-matching/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText }),
+      });
+      if (!analyzeRes.ok) throw new Error('analyze_failed');
+      const analyzed = await analyzeRes.json();
+      const skills:    string[] = analyzed.skills    ?? [];
+      const languages: string[] = (analyzed.languages ?? []).map((l: any) =>
+        typeof l === 'string' ? l : l.language,
+      );
+
+      // 3. Match against all jobs → find this job's score
+      setScoringState('matching');
+      const matchRes = await fetch(`${realtimeUrl}/cv-matching/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv: { rawText, skills, experience: [], education: [], languages },
+        }),
+      });
+      if (!matchRes.ok) throw new Error('match_failed');
+      const results: { jobOffer: { id: string }; score: number; matchedSkills: string[]; missingSkills: string[] }[] =
+        await matchRes.json();
+
+      const jobResult = results.find((r) => r.jobOffer.id === jobId);
+      setNewMatch({
+        score:         jobResult?.score         ?? 0,
+        matchedSkills: jobResult?.matchedSkills ?? [],
+        missingSkills: jobResult?.missingSkills ?? [],
+      });
+      setScoringState('done');
+    } catch {
+      setScoringState('error');
+    }
+  };
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleCvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,6 +169,16 @@ export function ApplicationForm({
     if (cvPreviewUrl) URL.revokeObjectURL(cvPreviewUrl);
     setCvFile(file);
     setCvPreviewUrl(URL.createObjectURL(file));
+    scoreNewCv(file);
+  };
+
+  const handleRemoveCv = () => {
+    setCvFile(null);
+    if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
+    if (cvInputRef.current) cvInputRef.current.value = '';
+    setScoringState('idle');
+    setNewMatch(null);
+    setUpdateProfile(false);
   };
 
   const handleDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,26 +192,147 @@ export function ApplicationForm({
     setAdditionalDocs((prev) => prev.filter((_, i) => i !== index));
 
   const handleFormSubmit = async (values: FormValues) => {
+    if (cvFile && updateProfile && onCvProfileUpdate) {
+      await onCvProfileUpdate(cvFile);
+    }
+
     const data: ApplicationFormData = {
-      cover_letter: values.cover_letter,
-      // Champs extra — supprime si ton controller ne les gère pas
+      cover_letter:       values.cover_letter,
       portfolio_url:      values.portfolio_url      || undefined,
       availability_date:  values.availability_date  || undefined,
-      salary_expectation: values.salary_expectation
-        ? Number(values.salary_expectation)
-        : undefined,
-      additional_info: values.additional_info || undefined,
+      salary_expectation: values.salary_expectation ? Number(values.salary_expectation) : undefined,
+      additional_info:    values.additional_info    || undefined,
     };
-
-    if (cvFile)                  data.cv = cvFile;
+    if (cvFile)                    data.cv = cvFile;
     if (additionalDocs.length > 0) data.additional_documents = additionalDocs;
-
     await onSubmit(data);
   };
 
   const useTemplate = () => {
     setValue('cover_letter', COVER_LETTER_TEMPLATE, { shouldValidate: true });
     setCharCount(COVER_LETTER_TEMPLATE.length);
+  };
+
+  // ── Score comparison panel ─────────────────────────────────────────────────
+  const scoringInProgress = ['parsing', 'analyzing', 'matching'].includes(scoringState);
+
+  const scoringLabel: Record<ScoringState, string> = {
+    idle:     '',
+    parsing:  'Lecture du PDF…',
+    analyzing:'Extraction des compétences…',
+    matching: 'Calcul de la correspondance…',
+    done:     '',
+    error:    '',
+  };
+
+  const ScorePanel = () => {
+    if (!cvFile) return null;
+
+    if (scoringInProgress) {
+      return (
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-campus-blue-50 rounded-lg border border-campus-blue-100 text-sm text-campus-blue-700">
+          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+          {scoringLabel[scoringState]}
+        </div>
+      );
+    }
+
+    if (scoringState === 'error') {
+      return (
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 rounded-lg border border-red-100 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          Impossible d'analyser ce CV. Il sera quand même joint à votre candidature.
+        </div>
+      );
+    }
+
+    if (scoringState === 'done' && newMatch) {
+      const diff = currentScore !== undefined ? newMatch.score - currentScore : null;
+      const improved = diff !== null && diff > 0;
+      const worse    = diff !== null && diff < 0;
+
+      return (
+        <div className="space-y-3">
+          {/* Score comparison */}
+          <div className={cn(
+            'rounded-lg border p-3 space-y-2',
+            improved ? 'bg-emerald-50 border-emerald-200'
+            : worse  ? 'bg-amber-50 border-amber-200'
+                     : 'bg-campus-blue-50 border-campus-blue-100'
+          )}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className={cn(
+                'text-sm font-semibold flex items-center gap-1.5',
+                improved ? 'text-emerald-700' : worse ? 'text-amber-700' : 'text-campus-blue-700'
+              )}>
+                {improved ? <TrendingUp  className="h-4 w-4" />
+                : worse   ? <TrendingDown className="h-4 w-4" />
+                          : <Minus className="h-4 w-4" />}
+                {improved ? 'Meilleure correspondance ✓'
+                : worse   ? 'Moins bonne correspondance'
+                          : 'Correspondance similaire'}
+              </span>
+
+              <div className="flex items-center gap-2">
+                {currentScore !== undefined && (
+                  <>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${scoreBadgeClass(currentScore)}`}>
+                      Actuel : {currentScore}%
+                    </span>
+                    <span className="text-campus-gray-400 text-xs">→</span>
+                  </>
+                )}
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${scoreBadgeClass(newMatch.score)}`}>
+                  {currentScore !== undefined ? 'Nouveau : ' : ''}{newMatch.score}%
+                  {diff !== null && diff !== 0 && (
+                    <span className="ml-1">({diff > 0 ? '+' : ''}{diff}%)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Matched skills */}
+            {newMatch.matchedSkills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {newMatch.matchedSkills.map((s) => (
+                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    ✓ {s}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Missing skills */}
+            {newMatch.missingSkills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {newMatch.missingSkills.slice(0, 5).map((s) => (
+                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                    ✗ {s}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Update profile option */}
+          {onCvProfileUpdate && (
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={updateProfile}
+                onChange={(e) => setUpdateProfile(e.target.checked)}
+                className="w-4 h-4 rounded accent-campus-blue cursor-pointer"
+              />
+              <span className="text-xs text-campus-gray-600 group-hover:text-campus-gray-900 transition-colors">
+                Mettre à jour mon CV de profil avec ce fichier
+              </span>
+            </label>
+          )}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -151,7 +359,6 @@ export function ApplicationForm({
             </Button>
           </div>
         </CardHeader>
-
         <CardContent className="space-y-2">
           <Textarea
             {...register('cover_letter', {
@@ -166,12 +373,8 @@ export function ApplicationForm({
             )}
           />
           <div className="flex items-center justify-between text-xs">
-            <span className={cn(
-              charCount < 100 ? 'text-red-500' : 'text-campus-blue-600 font-medium'
-            )}>
-              {charCount < 100
-                ? `Encore ${100 - charCount} caractères minimum`
-                : `✓ ${charCount} caractères`}
+            <span className={cn(charCount < 100 ? 'text-red-500' : 'text-campus-blue-600 font-medium')}>
+              {charCount < 100 ? `Encore ${100 - charCount} caractères minimum` : `✓ ${charCount} caractères`}
             </span>
             <span className="text-campus-gray-500">{charCount} / 3 000</span>
           </div>
@@ -184,10 +387,18 @@ export function ApplicationForm({
       {/* ── 2. CV ── */}
       <Card className="border-campus-gray-300 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
-            <Upload className="h-4 w-4 text-campus-blue" />
-            CV (PDF)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
+              <Upload className="h-4 w-4 text-campus-blue" />
+              CV (PDF)
+            </CardTitle>
+            {currentScore !== undefined && !cvFile && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${scoreBadgeClass(currentScore)}`}>
+                <Sparkles className="h-3 w-3 inline mr-1" />
+                Score actuel : {currentScore}%
+              </span>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-3">
@@ -203,21 +414,21 @@ export function ApplicationForm({
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setCvFile(null);
-                    if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
-                    if (cvInputRef.current) cvInputRef.current.value = '';
-                  }}
+                  onClick={handleRemoveCv}
                   className="text-campus-gray-400 hover:text-campus-gray-700"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Score panel */}
+              <ScorePanel />
+
               {cvPreviewUrl && (
                 <iframe
                   src={cvPreviewUrl}
                   title="Aperçu du CV"
-                  className="w-full h-96 rounded-lg border border-campus-gray-200 mt-3"
+                  className="w-full h-96 rounded-lg border border-campus-gray-200 mt-2"
                 />
               )}
             </>
@@ -237,7 +448,6 @@ export function ApplicationForm({
             </div>
           )}
 
-          {/* Info CV profil existant */}
           {!cvFile && defaultCvUrl && (
             <p className="text-xs text-campus-gray-500 flex items-center gap-1.5">
               <CheckCircle2 className="h-3 w-3 text-campus-blue-400" />
@@ -277,8 +487,6 @@ export function ApplicationForm({
 
         {showAdvanced && (
           <CardContent className="pt-5 space-y-4">
-
-            {/* Documents additionnels → additional_documents[] dans le modèle */}
             <div className="space-y-2">
               <Label className="text-sm text-campus-gray-700">
                 Documents supplémentaires
@@ -290,11 +498,7 @@ export function ApplicationForm({
                     <li key={i} className="flex items-center gap-2 p-2 bg-campus-gray-50 rounded border border-campus-gray-200">
                       <Paperclip className="h-3.5 w-3.5 text-campus-gray-400 flex-shrink-0" />
                       <span className="text-xs text-campus-gray-700 flex-1 truncate">{doc.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeDoc(i)}
-                        className="text-campus-gray-400 hover:text-red-500"
-                      >
+                      <button type="button" onClick={() => removeDoc(i)} className="text-campus-gray-400 hover:text-red-500">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </li>
@@ -321,7 +525,6 @@ export function ApplicationForm({
               />
             </div>
 
-            {/* Portfolio — hors modèle, à activer si le controller l'accepte */}
             <div className="space-y-1.5">
               <Label className="text-sm text-campus-gray-700">Portfolio / GitHub</Label>
               <div className="relative">
@@ -389,7 +592,7 @@ export function ApplicationForm({
       <Button
         type="submit"
         size="lg"
-        disabled={loading || !isValid}
+        disabled={loading || !isValid || scoringInProgress}
         className={cn(
           'w-full font-semibold transition-all',
           'bg-campus-blue hover:bg-campus-blue-600 text-white',
@@ -397,10 +600,9 @@ export function ApplicationForm({
         )}
       >
         {loading ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Envoi en cours…
-          </>
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Envoi en cours…</>
+        ) : scoringInProgress ? (
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Analyse du CV…</>
         ) : (
           'Envoyer ma candidature'
         )}

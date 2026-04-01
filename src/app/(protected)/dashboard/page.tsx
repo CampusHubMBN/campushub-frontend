@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobApplicationsApi } from '@/services/api/job-applications.api';
 import { jobsApi } from '@/services/api/jobs.api';
 import { articlesApi } from '@/services/api/articles.api';
+import { eventsApi } from '@/services/api/events.api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +16,7 @@ import {
   Sparkles, Briefcase, Clock, CheckCircle2, TrendingUp,
   ArrowRight, Building2, MapPin, Eye, RotateCcw, ChevronRight,
   FileText, Lightbulb, BookOpen, Pencil, Plus, ToggleRight,
-  MessageSquare,
+  MessageSquare, CalendarClock,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -33,6 +34,7 @@ import { fr } from 'date-fns/locale';
 import { postsApi } from '@/services/api/posts.api';
 import { Post, REACTION_LABELS } from '@/types/post';
 import { PostFeedCard } from '@/components/blog/PostFeedCard';
+import { CampusEvent } from '@/types/event';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function computeAppStats(applications: JobApplication[]) {
@@ -129,12 +131,17 @@ function ApplicationRow({ application, onWithdraw, withdrawing }: {
 }
 
 // ─── Recommended job card ─────────────────────────────────────────────────────
-function RecommendedJobCard({ job }: { job: Job }) {
+function RecommendedJobCard({ job, matchScore }: { job: Job; matchScore?: number }) {
   const router = useRouter();
   const companyName = job.company?.name ?? job.company_name ?? 'Entreprise';
   const TYPE_LABELS: Record<string, string> = {
     internship: 'Stage', apprenticeship: 'Alternance', cdd: 'CDD', cdi: 'CDI', freelance: 'Freelance',
   };
+  const scoreColor = matchScore !== undefined
+    ? matchScore >= 70 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+    : matchScore >= 40 ? 'bg-amber-100 text-amber-700 border-amber-200'
+    : 'bg-gray-100 text-gray-500 border-gray-200'
+    : '';
   return (
     <div onClick={() => router.push(`/jobs/${job.id}`)}
       className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors border border-campus-gray-200 hover:border-campus-blue-200 hover:bg-campus-blue-50/40"
@@ -153,9 +160,15 @@ function RecommendedJobCard({ job }: { job: Job }) {
         </div>
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <Badge className="bg-campus-blue-50 text-campus-blue border-campus-blue-100 border text-xs font-medium">
-          {TYPE_LABELS[job.type] ?? job.type}
-        </Badge>
+        {matchScore !== undefined ? (
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${scoreColor}`}>
+            {matchScore}%
+          </span>
+        ) : (
+          <Badge className="bg-campus-blue-50 text-campus-blue border-campus-blue-100 border text-xs font-medium">
+            {TYPE_LABELS[job.type] ?? job.type}
+          </Badge>
+        )}
         <ChevronRight className="h-3.5 w-3.5 text-campus-gray-400" />
       </div>
     </div>
@@ -316,6 +329,46 @@ export default function DashboardPage() {
     enabled:  mounted && !!user,
   });
 
+  // CV match scores (students/alumni/bde_member with skills + CV)
+  const APPLICANT_ROLES = ['student', 'alumni', 'bde_member'];
+  const isApplicant = user && APPLICANT_ROLES.includes(user.role);
+  const hasSkills = (user?.info?.skills?.length ?? 0) > 0;
+
+  const { data: scoreMap = {} } = useQuery<Record<string, number>>({
+    queryKey: ['cv-match-scores', user?.id],
+    queryFn: async () => {
+      const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+      const languages: string[] = (user!.info!.languages ?? []).map((l: any) =>
+        typeof l === 'string' ? l : l.language,
+      );
+      const res = await fetch(`${realtimeUrl}/cv-matching/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv: {
+            rawText: '',
+            skills: user!.info!.skills ?? [],
+            experience: [],
+            education: [],
+            languages,
+          },
+        }),
+      });
+      if (!res.ok) return {};
+      const results: { jobOffer: { id: string }; score: number }[] = await res.json();
+      return Object.fromEntries(results.map((r) => [r.jobOffer.id, r.score]));
+    },
+    enabled: mounted && !!isApplicant && hasSkills && !!user?.info?.cv_url,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Événements à venir
+  const { data: eventsData, isLoading: eventsLoading } = useQuery({
+    queryKey: ['events-upcoming-dashboard'],
+    queryFn: () => eventsApi.getEvents({ upcoming: true }),
+    enabled: mounted && !!user,
+  });
+
   // Brouillons de l'auteur (si auteur uniquement)
   const { data: draftsData, isLoading: loadingDrafts } = useQuery({
     queryKey: ['my-articles', 'draft'],
@@ -364,14 +417,16 @@ export default function DashboardPage() {
   // ── Données dérivées ──────────────────────────────────────────────────────
   const appStats      = computeAppStats(applications);
   const appliedJobIds = new Set(applications.map((a) => String(a.job_id)));
-  const recommended   = (recommendedData?.data ?? [])
-    .filter((j) => !appliedJobIds.has(String(j.id)) && j.can_apply)
+  const recommended   = (recommendedData ?? [])
+    .filter((j) => !appliedJobIds.has(String(j.id)) && j.is_active)
+    .sort((a, b) => (scoreMap[b.id] ?? -1) - (scoreMap[a.id] ?? -1))
     .slice(0, 3);
   const recentArticles = (recentArticlesData?.data ?? []).slice(0, 4);
   const drafts         = (draftsData?.data ?? []).slice(0, 3);
 
-  const recentPosts = (recentPostsData?.data ?? []).slice(0, 4);
-  const postDrafts  = (postDraftsData?.data ?? []).slice(0, 3);
+  const recentPosts    = (recentPostsData?.data ?? []).slice(0, 4);
+  const postDrafts     = (postDraftsData?.data ?? []).slice(0, 3);
+  const upcomingEvents: CampusEvent[] = ((eventsData as any)?.data ?? eventsData ?? []).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-campus-gray-50">
@@ -574,6 +629,78 @@ export default function DashboardPage() {
               </Card>
             )}
 
+            {/* Événements à venir */}
+            <Card className="border-campus-gray-300 shadow-sm">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-base font-semibold text-campus-gray-900 flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-campus-blue" />
+                  Événements à venir
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="text-xs text-campus-blue hover:bg-campus-blue-50 -mr-2"
+                  onClick={() => router.push('/events')}>
+                  Voir tout <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {eventsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3 py-2">
+                        <Skeleton className="h-10 w-10 rounded-lg bg-campus-gray-200 flex-shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-3/4 bg-campus-gray-200" />
+                          <Skeleton className="h-3 w-1/2 bg-campus-gray-200" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : upcomingEvents.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <CalendarClock className="h-8 w-8 text-campus-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-campus-gray-500">Aucun événement à venir</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-campus-gray-100">
+                    {upcomingEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="py-3 flex items-start gap-3 cursor-pointer group"
+                        onClick={() => router.push(`/events/${event.id}`)}
+                      >
+                        <div className="h-10 w-10 rounded-lg bg-campus-blue/10 flex items-center justify-center flex-shrink-0">
+                          <CalendarClock className="h-5 w-5 text-campus-blue" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-campus-gray-900 truncate group-hover:text-campus-blue transition-colors">
+                            {event.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-xs text-campus-gray-400">
+                              {new Date(event.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </span>
+                            {event.location && (
+                              <>
+                                <span className="text-campus-gray-300 text-xs">·</span>
+                                <span className="text-xs text-campus-gray-400 flex items-center gap-0.5">
+                                  <MapPin className="h-2.5 w-2.5" />{event.location}
+                                </span>
+                              </>
+                            )}
+                            {event.is_registered && (
+                              <>
+                                <span className="text-campus-gray-300 text-xs">·</span>
+                                <span className="text-xs text-green-600 font-medium">Inscrit ✓</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Profile completion */}
             {user.info && user.info.profile_completion < 100 && (
               <Card className="border-campus-orange-200 bg-campus-orange-50 shadow-sm">
@@ -617,7 +744,7 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {recommended.map((job) => <RecommendedJobCard key={job.id} job={job} />)}
+                      {recommended.map((job) => <RecommendedJobCard key={job.id} job={job} matchScore={scoreMap[job.id]} />)}
                     </div>
                   )}
                 </CardContent>
