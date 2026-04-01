@@ -31,15 +31,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // console.log("Error", error);
-    if (error.response?.status === 401) {
+    const url = error.config?.url ?? '';
+    const isAuthEndpoint = url.includes('/login') || url.includes('/register') || url.includes('/csrf-cookie');
+    const onLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+
+    if (error.response?.status === 401 && !isAuthEndpoint && !onLoginPage) {
       localStorage.removeItem('auth-storage');
       window.location.href = '/login';
     }
-    // Ajouter — compte suspendu
+
     if (
       error.response?.status === 403 &&
-      (error.response.data.code === 'ACCOUNT_SUSPENDED' ||
+      (error.response.data?.code === 'ACCOUNT_SUSPENDED' ||
         error.response?.data?.message?.includes('suspendu'))
     ) {
       localStorage.removeItem('auth-storage');

@@ -21,6 +21,10 @@ export interface CampusEvent {
     id: string;
     name: string;
   };
+  last_editor?: {
+    id: string;
+    name: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }

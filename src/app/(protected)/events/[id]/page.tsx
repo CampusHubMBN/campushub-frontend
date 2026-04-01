@@ -55,6 +55,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const isOrganizer = user && ORGANIZER_ROLES.includes(user.role) &&
     (user.role === 'admin' || event?.organizer?.id === user.id);
 
+  const canManageEvent = isOrganizer; // alias for clarity below
+  const isAdmin = user?.role === 'admin';
+
   const deleteMutation = useMutation({
     mutationFn: () => eventsApi.delete(id),
     onSuccess: () => {
@@ -120,8 +123,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const Icon = config.icon;
   const storageUrl = process.env.NEXT_PUBLIC_STORAGE_URL ?? 'http://localhost:8000';
   const isPast = new Date(event.start_date) < new Date();
-  const canRegister = isAuthenticated && !isPast && !event.is_full && !event.is_registered;
-  const canUnregister = isAuthenticated && !isPast && event.is_registered;
+  const canRegister = isAuthenticated && !isPast && !event.is_full && !event.is_registered && !isAdmin;
+  const canUnregister = isAuthenticated && !isPast && event.is_registered && !isAdmin;
   const isProcessing = attendMutation.isPending || unattendMutation.isPending;
 
   const capacityPct = event.capacity
@@ -264,6 +267,15 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   <dt className="text-xs text-gray-400 uppercase tracking-wide mb-1">Organisateur</dt>
                   <dd className="font-medium text-gray-900">{event.organizer.name}</dd>
                 </div>
+                {event.last_editor && event.last_editor.id !== event.organizer.id && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs text-gray-400 uppercase tracking-wide mb-1">Dernière modification</dt>
+                    <dd className="text-sm text-gray-600 flex items-center gap-1.5">
+                      <Pencil className="h-3.5 w-3.5 text-gray-400" />
+                      Modifié par <span className="font-medium text-gray-800">{event.last_editor.name}</span>
+                    </dd>
+                  </div>
+                )}
                 {event.target_roles && (
                   <div className="sm:col-span-2">
                     <dt className="text-xs text-gray-400 uppercase tracking-wide mb-1">Ouvert à</dt>
@@ -282,7 +294,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-4">
             {/* Registration card */}
             <div className="bg-white rounded-2xl p-6 shadow-sm sticky top-20">
-              <h2 className="font-bold text-gray-900 text-lg mb-4">Inscription</h2>
+              <h2 className="font-bold text-gray-900 text-lg mb-4">{isAdmin ? 'Gestion' : 'Inscription'}</h2>
 
               {/* Capacity bar */}
               {capacityPct !== null && (
@@ -314,7 +326,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
               )}
 
-              {isPast ? (
+              {isAdmin ? (
+                <p className="text-sm text-gray-500 text-center py-2">
+                  En tant qu'admin, vous gérez cet événement depuis les boutons en haut de page.
+                </p>
+              ) : isPast ? (
                 <p className="text-gray-500 text-sm text-center py-2">Cet événement est terminé.</p>
               ) : !isAuthenticated ? (
                 <div className="space-y-3">
@@ -350,7 +366,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <Button disabled className="w-full">Complet</Button>
               ) : null}
 
-              {isAuthenticated && !isPast && (
+              {isAuthenticated && !isPast && !isAdmin && (
                 <p className="text-xs text-gray-400 mt-3 text-center">
                   Un email de confirmation sera envoyé après inscription.
                   <br />Un rappel 24h avant l'événement.

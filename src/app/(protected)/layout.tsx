@@ -58,13 +58,17 @@ export default function ProtectedLayout({
         ) {
           router.replace('/recruiter');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Auth check failed:', error);
-        logout();
-
-        // Si route protégée et pas auth → redirect login
-        if (!isPublic) {
-          router.push('/login');
+        // Only logout + redirect on 401 (unauthenticated).
+        // A 500 server error should not wipe the local session —
+        // the user is still logged in, the server just had a temporary error.
+        const status = error?.response?.status;
+        if (status === 401 || status === 419) {
+          logout();
+          if (!isPublic) {
+            router.push('/login');
+          }
         }
         // Si erreur 401, redirect login (géré par interceptor)
         // console.error('Auth check failed:', error);
