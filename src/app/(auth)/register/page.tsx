@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
-import { authApi, getCsrfToken } from '@/services/api/auth.api';
+import { authApi } from '@/services/api/auth.api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -48,7 +48,7 @@ function RegisterForm() {
 
   const verifyInvitation = async () => {
     try {
-      await getCsrfToken();
+      // await getCsrfToken(); // SESSION AUTH
       const result = await invitationsApi.verifyInvitation({ token: token! });
       setInvitationEmail(result.email);
       setInvitationRole(result.role);
