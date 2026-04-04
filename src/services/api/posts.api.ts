@@ -5,6 +5,8 @@ import {
   BlogCategory, CommentsResponse, Comment, ReactPayload,
 } from '@/types/post';
 
+export type VoteValue = 1 | -1;
+
 export const postsApi = {
   // ── Lecture ──────────────────────────────────────────────────────────────
 
@@ -99,5 +101,21 @@ export const postsApi = {
 
   deleteComment: async (commentId: string): Promise<void> => {
     await api.delete(`/comments/${commentId}`);
+  },
+
+  voteComment: async (commentId: string, value: VoteValue): Promise<{
+    votes_count: number;
+    user_vote:   VoteValue | null;
+  }> => {
+    const response = await api.post(`/comments/${commentId}/vote`, { value });
+    return response.data.data;
+  },
+
+  acceptAnswer: async (commentId: string): Promise<{
+    id:                 string;
+    is_accepted_answer: boolean;
+  }> => {
+    const response = await api.post(`/comments/${commentId}/accept`);
+    return response.data.data;
   },
 };

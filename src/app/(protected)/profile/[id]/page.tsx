@@ -1,9 +1,10 @@
 // src/app/(protected)/profile/[id]/page.tsx
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useMutation } from '@apollo/client/react';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/services/api/users.api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,8 +15,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft, BookOpen, Github, Linkedin, Globe,
   GraduationCap, Star, Clock, Eye, ChevronRight,
-  Award, TrendingUp, ExternalLink, MapPin,
+  Award, TrendingUp, ExternalLink, MapPin, MessageSquare, Loader2,
 } from 'lucide-react';
+import { FEATURES } from '@/lib/features';
+import { START_CONVERSATION } from '@/lib/graphql/chat';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { storageUrl } from '@/lib/utils';
 import { DIFFICULTY_LABELS, DIFFICULTY_COLORS, ArticleDifficulty } from '@/types/article';
@@ -125,6 +129,19 @@ export default function PublicProfilePage({
   const router   = useRouter();
   const { user } = useAuthStore();
 
+  const [startConversation, { loading: starting }] = useMutation(START_CONVERSATION);
+
+  const handleMessage = async () => {
+    try {
+      const { data } = await startConversation({ variables: { otherUserId: id } });
+      const convId = (data as any)?.startConversation?.id;
+      if (convId) router.push(`/chat/${convId}`);
+    } catch (err: any) {
+      const msg = err?.graphQLErrors?.[0]?.message ?? 'Impossible de démarrer la conversation';
+      toast.error(msg);
+    }
+  };
+
   const { data: profile, isLoading, isError } = useQuery({
     queryKey: ['user-profile', id],
     queryFn:  () => usersApi.getUser(id),
@@ -217,8 +234,22 @@ export default function PublicProfilePage({
                 )}
               </div>
 
-              {/* Réseaux */}
+              {/* Réseaux + Message */}
               <div className="flex items-center gap-2 flex-wrap">
+                {FEATURES.CHAT && id !== user?.id && (
+                  <Button
+                    onClick={handleMessage}
+                    disabled={starting}
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs bg-campus-blue hover:bg-campus-blue-600 text-white h-8 px-3 rounded-lg"
+                  >
+                    {starting
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <MessageSquare className="h-3.5 w-3.5" />
+                    }
+                    Message
+                  </Button>
+                )}
                 {info?.linkedin_url && (
                   <a href={info.linkedin_url} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-1.5 text-xs text-campus-gray-500 hover:text-campus-blue px-2.5 py-1.5 rounded-lg border border-campus-gray-200 hover:border-campus-blue-200 hover:bg-campus-blue-50 transition-colors"
@@ -244,6 +275,7 @@ export default function PublicProfilePage({
                   </a>
                 )}
               </div>
+
             </div>
 
             {/* Stats */}

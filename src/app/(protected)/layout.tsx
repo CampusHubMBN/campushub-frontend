@@ -6,6 +6,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { authApi } from '@/services/api/auth.api';
 import { Navbar } from '@/components/layout/navbar';
 import { NotificationInitializer } from '@/components/layout/notification-initializer';
+import { ChatInitializer } from '@/components/layout/chat-initializer';
+import { PresenceInitializer } from '@/components/layout/presence-initializer';
+import { FEATURES } from '@/lib/features';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { StoreProvider } from '@/providers/store-provider';
@@ -112,6 +115,8 @@ export default function ProtectedLayout({
     <div className="min-h-screen">
       <StoreProvider>
         <NotificationInitializer />
+        <PresenceInitializer />
+        {FEATURES.CHAT && <ChatInitializer />}
         <Navbar />
         <main className="pt-14 pb-16 md:pb-0 md:pl-56">{children}</main>
       </StoreProvider>

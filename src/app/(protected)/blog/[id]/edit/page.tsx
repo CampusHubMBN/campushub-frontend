@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import { postsApi } from '@/services/api/posts.api';
 import { useAuthStore } from '@/store/auth.store';
-import { BlogCategory } from '@/types/post';
+import { BlogCategory, PostType } from '@/types/post';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft, Save, Eye, Loader2, X, Plus,
-  Image as ImageIcon, AlertCircle, ToggleRight, ToggleLeft,
+  Image as ImageIcon, AlertCircle, ToggleRight, ToggleLeft, HelpCircle, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { storageUrl } from '@/lib/utils';
@@ -69,6 +69,7 @@ export default function PostEditPage({
   const [coverFile, setCoverFile]       = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [savedPostId, setSavedPostId]   = useState<string | null>(null);
+  const [postType, setPostType]         = useState<PostType>('post');
 
   const editId = isNew ? savedPostId : id;
 
@@ -103,6 +104,7 @@ export default function PostEditPage({
       });
       setContent(existing.content);
       setTags(existing.tags ?? []);
+      setPostType(existing.type ?? 'post');
       if (existing.cover_image_url) {
         setCoverPreview(storageUrl(existing.cover_image_url) ?? null);
       }
@@ -151,6 +153,7 @@ export default function PostEditPage({
         content,
         category_id: values.category_id || null,
         tags,
+        type:        postType,
         status:      values.publish ? 'published' as const : 'draft' as const,
       };
 
@@ -322,6 +325,36 @@ export default function PostEditPage({
           {/* ── Meta : catégorie + tags ── */}
           <Card className="border-campus-gray-300 shadow-sm">
             <CardContent className="pt-4 pb-4 space-y-4">
+
+              {/* Type */}
+              <div className="space-y-1.5">
+                <Label className="text-sm text-campus-gray-700">Type de publication</Label>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'post',     label: 'Post',     icon: <FileText className="h-4 w-4" />,    desc: 'Partager du contenu, une expérience' },
+                    { value: 'question', label: 'Question', icon: <HelpCircle className="h-4 w-4" />, desc: 'Poser une question à la communauté' },
+                  ] as { value: PostType; label: string; icon: React.ReactNode; desc: string }[]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPostType(opt.value)}
+                      className={cn(
+                        'flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-colors',
+                        postType === opt.value
+                          ? 'border-campus-blue bg-campus-blue-50 text-campus-blue'
+                          : 'border-campus-gray-300 text-campus-gray-600 hover:border-campus-blue hover:bg-campus-blue-50/40'
+                      )}
+                    >
+                      {opt.icon}
+                      <div>
+                        <p className="text-sm font-medium">{opt.label}</p>
+                        <p className="text-xs text-campus-gray-400">{opt.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {/* Catégorie */}

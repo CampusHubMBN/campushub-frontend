@@ -3,12 +3,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Briefcase, BookOpen, FileText, CalendarClock, Users, LayoutDashboard } from 'lucide-react';
+import {
+  Briefcase, BookOpen, FileText, CalendarClock,
+  Users, LayoutDashboard, MessageSquare,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
 import { NotificationBell } from './notification-bell';
 import { useAuthStore } from '@/store/auth.store';
+import { useChatStore } from '@/store/chat.store';
 import { useMounted } from '@/hooks/use-mounted';
+import { FEATURES } from '@/lib/features';
 
 const navItems = [
   { label: 'Offres',     href: '/jobs',     icon: Briefcase     },
@@ -17,28 +22,35 @@ const navItems = [
   { label: 'Événements', href: '/events',   icon: CalendarClock },
 ];
 
+// Appended after the per-role filter so every role sees it when enabled.
+const chatItem = FEATURES.CHAT
+  ? [{ label: 'Messages', href: '/chat', icon: MessageSquare }]
+  : [];
+
 export function Navbar() {
-  const { user } = useAuthStore();
-  const mounted = useMounted();
-  const pathname = usePathname();
+  const { user }      = useAuthStore();
+  const mounted       = useMounted();
+  const pathname      = usePathname();
+  const chatUnread    = useChatStore((s) => s.totalUnread);
 
   const homeItem = !mounted || !user ? { label: 'Dashboard', href: '/jobs' }
-    : user.role === 'admin'       ? { label: 'Administration',  href: '/admin'      }
-    : user.role === 'company'     ? { label: 'Recrutement',  href: '/recruiter'   }
-    : user.role === 'pedagogical' ? { label: 'Mon espace',   href: '/pedagogical' }
+    : user.role === 'admin'       ? { label: 'Administration', href: '/admin'       }
+    : user.role === 'company'     ? { label: 'Recrutement',    href: '/recruiter'   }
+    : user.role === 'pedagogical' ? { label: 'Mon espace',     href: '/pedagogical' }
     : { label: 'Dashboard', href: '/dashboard' };
 
-  // Company sees only Jobs + Events; all other roles see all nav items
-  const visibleNavItems = mounted && user?.role === 'company'
-    ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
-    : navItems;
+  // Company sees only Jobs + Events from the base list.
+  // Chat is appended separately so it shows for every role.
+  const visibleNavItems = [
+    ...(mounted && user?.role === 'company'
+      ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
+      : navItems),
+    ...chatItem,
+  ];
 
   const allNavItems = [
-    ...(mounted && user
-      ? [{ ...homeItem, icon: LayoutDashboard }]
-      : []),
+    ...(mounted && user ? [{ ...homeItem, icon: LayoutDashboard }] : []),
     ...visibleNavItems,
-    // Recrutement link for admin only (company's home IS /recruiter, pedagogical has its own dashboard)
     ...(mounted && user?.role === 'admin'
       ? [{ label: 'Recrutement', href: '/recruiter', icon: Users }]
       : []),
@@ -46,7 +58,7 @@ export function Navbar() {
 
   return (
     <>
-      {/* ── Top bar: logo + bell + UserNav ──────────────────── */}
+      {/* ── Top bar ──────────────────────────────────────────── */}
       <header className="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-5 bg-white border-gray-200 shadow-sm">
         <Link href={homeItem.href} className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-campus-blue to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
@@ -63,12 +75,13 @@ export function Navbar() {
         </div>
       </header>
 
-      {/* ── Desktop Sidebar: nav items only ─────────────────── */}
+      {/* ── Desktop Sidebar ───────────────────────────────────── */}
       <aside className="hidden md:flex fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-56 flex-col bg-campus-blue border-r border-gray-200 z-40">
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {allNavItems.map((item) => {
-            const Icon = item.icon;
+            const Icon   = item.icon;
             const active = pathname.startsWith(item.href);
+            const isChat = item.href === '/chat';
             return (
               <Link
                 key={item.href}
@@ -81,23 +94,28 @@ export function Navbar() {
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {isChat && chatUnread > 0 && (
+                  <span className="bg-campus-orange text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center leading-none">
+                    {chatUnread > 99 ? '99+' : chatUnread}
+                  </span>
+                )}
               </Link>
             );
           })}
         </nav>
       </aside>
 
-      {/* ── Mobile Bottom Bar ───────────────────────────────── */}
-      <MobileNav />
+      {/* ── Mobile Bottom Bar ────────────────────────────────── */}
+      <MobileNav chatUnread={chatUnread} />
     </>
   );
 }
 
-function MobileNav() {
+function MobileNav({ chatUnread }: { chatUnread: number }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const mounted = useMounted();
+  const mounted  = useMounted();
 
   const homeHref = !mounted || !user ? '/jobs'
     : user.role === 'admin'       ? '/admin'
@@ -105,16 +123,20 @@ function MobileNav() {
     : user.role === 'pedagogical' ? '/pedagogical'
     : '/dashboard';
 
-  const visibleNavItems = mounted && user?.role === 'company'
-    ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
-    : navItems;
+  const visibleNavItems = [
+    ...(mounted && user?.role === 'company'
+      ? navItems.filter((i) => i.href === '/jobs' || i.href === '/events')
+      : navItems),
+    ...chatItem,
+  ];
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-campus-blue border-t border-gray-200">
       <div className="flex items-center justify-around h-16 px-2">
         {visibleNavItems.map((item) => {
-          const Icon = item.icon;
+          const Icon   = item.icon;
           const active = pathname.startsWith(item.href);
+          const isChat = item.href === '/chat';
           return (
             <Link
               key={item.href}
@@ -124,11 +146,19 @@ function MobileNav() {
                 active ? 'text-accent' : 'text-white'
               )}
             >
-              <Icon className="h-5 w-5" />
+              <div className="relative">
+                <Icon className="h-5 w-5" />
+                {isChat && chatUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-campus-orange text-white text-[10px] font-bold min-w-[1rem] h-4 rounded-full flex items-center justify-center px-0.5">
+                    {chatUnread > 9 ? '9+' : chatUnread}
+                  </span>
+                )}
+              </div>
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
           );
         })}
+
         <Link
           href={homeHref}
           className={cn(
@@ -139,7 +169,7 @@ function MobileNav() {
           <LayoutDashboard className="h-5 w-5" />
           <span className="text-xs font-medium">Accueil</span>
         </Link>
-        {/* Recrutement for admin only — company's Dashboard already points to /recruiter, pedagogical has its own */}
+
         {mounted && user?.role === 'admin' && (
           <Link
             href="/recruiter"

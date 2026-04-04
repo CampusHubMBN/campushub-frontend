@@ -1,6 +1,7 @@
 // src/types/post.ts
 
 export type PostStatus = 'draft' | 'published';
+export type PostType   = 'post' | 'question';
 export type ReactionType = 'like' | 'useful' | 'bravo';
 
 export const REACTION_LABELS: Record<ReactionType, string> = {
@@ -35,6 +36,7 @@ export interface Post {
   id:              string;
   author_id:       string;
   category_id:     string | null;
+  type:            PostType;
   title:           string;
   slug:            string;
   excerpt:         string | null;
@@ -75,15 +77,18 @@ export interface PostsResponse {
 }
 
 export interface Comment {
-  id:            string;
-  post_id:       string;
-  parent_id:     string | null;
-  content:       string | null;
-  is_deleted:    boolean;
-  replies_count: number;
-  is_own:        boolean;
-  created_at:    string;
-  updated_at:    string;
+  id:                  string;
+  post_id:             string;
+  parent_id:           string | null;
+  content:             string | null;
+  is_deleted:          boolean;
+  replies_count:       number;
+  votes_count:         number;
+  is_accepted_answer:  boolean;
+  user_vote:           1 | -1 | null;
+  is_own:              boolean;
+  created_at:          string;
+  updated_at:          string;
   author?: PostAuthor;
   replies?: Comment[];
 }
@@ -105,6 +110,7 @@ export interface PostFilters {
   author_id?: string;
   mine?:      boolean;
   status?:    PostStatus;
+  type?:      PostType;
   page?:      number;
 }
 
@@ -116,6 +122,7 @@ export interface PostPayload {
   category_id?:    string | null;
   tags?:           string[];
   status?:         PostStatus;
+  type?:           PostType;
 }
 
 export interface ReactPayload {
