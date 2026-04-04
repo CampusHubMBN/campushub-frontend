@@ -93,7 +93,9 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   message: string;
-  user: User; // User avec info déjà chargée
+  user: User;
+  token: string; // TOKEN AUTH
+  // token?: string; // SESSION AUTH: uncomment as optional if reverting
 }
 
 // API Response Wrapper

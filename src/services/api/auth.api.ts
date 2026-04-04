@@ -6,26 +6,25 @@ import {
 } from '@/types/api';
 import axios from 'axios';
 
-// Récupérer le CSRFcookie
-export const getCsrfToken = async () => {
-  await api.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/sanctum/csrf-cookie`, {
-    withCredentials: true,
-  });
-};
+// SESSION AUTH (SPA same-domain only) — not needed for token auth
+// export const getCsrfToken = async () => {
+//   await api.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/sanctum/csrf-cookie`, {
+//     withCredentials: true,
+//   });
+// };
 
 export const authApi = {
   // Register
   register: async (data: RegisterWithInvitationRequest): Promise<AuthResponse> => {
-    await getCsrfToken();
+    // await getCsrfToken(); // SESSION AUTH
     const response = await api.post<AuthResponse>('/register', data);
     return response.data;
   },
 
   // Login
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    await getCsrfToken(); // Obtenir CSRF token d'abord
+    // await getCsrfToken(); // SESSION AUTH
     const response = await api.post<AuthResponse>('/login', data);
-    // console.log(response)
     return response.data;
   },
 

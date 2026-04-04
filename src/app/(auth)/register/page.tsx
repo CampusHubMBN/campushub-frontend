@@ -87,7 +87,7 @@ function RegisterForm() {
         invitation_token: token!,
       });
 
-      setAuth(response.user);
+      setAuth(response.user, response.token);
       toast.success('Compte créé avec succès ! 🎉');
       router.push('/dashboard');
     } catch (error: any) {

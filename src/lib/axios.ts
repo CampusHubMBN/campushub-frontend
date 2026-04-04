@@ -4,23 +4,31 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
-  withCredentials: true, //cookie pour auth
+  // withCredentials: true, // SESSION AUTH: cookie pour auth (SPA same-domain only)
   headers: {
     'Accept': 'application/json',
   },
   timeout: 10000,
 });
 
-// Interceptor Request: Ajouter X-XSRF-TOKEN depuis cookie
+// Interceptor Request: Ajouter Authorization Bearer token
 api.interceptors.request.use(
   (config) => {
-    // Extraire XSRF-TOKEN du cookie
-    const token = getCookie('XSRF-TOKEN');
-
-    if (token) {
-      // Décoder le token (Laravel encode en URL)
-      config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
+    // --- TOKEN AUTH ---
+    const raw = localStorage.getItem('auth-storage');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        const token = parsed?.state?.token;
+        if (token) {
+          config.headers['Authorization'] = `Bearer ${token}`;
+        }
+      } catch {}
     }
+
+    // --- SESSION AUTH (SPA same-domain only) ---
+    // const xsrf = getCookie('XSRF-TOKEN');
+    // if (xsrf) config.headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf);
 
     return config;
   },
@@ -53,18 +61,13 @@ api.interceptors.response.use(
   }
 )
 
-// Helper: Extraire cookie par nom
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null;
-
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null;
-  }
-
-  return null;
-}
+// Helper: Extraire cookie par nom (SESSION AUTH)
+// function getCookie(name: string): string | null {
+//   if (typeof document === 'undefined') return null;
+//   const value = `; ${document.cookie}`;
+//   const parts = value.split(`; ${name}=`);
+//   if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+//   return null;
+// }
 
 export default api;

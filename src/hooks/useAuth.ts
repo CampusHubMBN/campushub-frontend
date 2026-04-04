@@ -24,7 +24,7 @@ export function useAuth() {
   const registerMutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: (data) => {
-      setAuth(data.user);
+      setAuth(data.user, data.token);
       queryClient.setQueryData(['auth', 'me'], data.user);
     },
   });
@@ -37,8 +37,8 @@ export function useAuth() {
       queryClient.clear();
       // Reset le store Zustand
       logoutStore();
-      // Setter le nouvel user
-      setAuth(data.user);
+      // Setter le nouvel user + token
+      setAuth(data.user, data.token);
       queryClient.setQueryData(['auth', 'me'], data.user);
     },
   });

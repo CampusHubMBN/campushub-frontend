@@ -9,10 +9,10 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  // _hasHydrated: boolean;
-  
+
   // Actions
-  setAuth: (user: User) => void; // plus de token usage session
+  setAuth: (user: User, token?: string) => void; // TOKEN AUTH (token optional for me() refreshes)
+  // setAuth: (user: User) => void; // SESSION AUTH (SPA same-domain only)
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
   updateUserInfo: (info: Partial<UserInfo>) => void;
@@ -26,15 +26,17 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       // _hasHydrated: false, // Flag hydration
 
-      setAuth: (user) => {
-        // localStorage.setItem('token', token);
-        // le token est dans le http cookie pas besoin de sauver
-        set({ user, isAuthenticated: true });
+      // --- TOKEN AUTH ---
+      setAuth: (user, token?) => {
+        set({ user, isAuthenticated: true, ...(token ? { token } : {}) });
       },
+      // --- SESSION AUTH (SPA same-domain only) ---
+      // setAuth: (user) => {
+      //   set({ user, isAuthenticated: true });
+      // },
 
       logout: () => {
-        // localStorage.removeItem('token');
-        set({ user: null, isAuthenticated: false });
+        set({ user: null, token: null, isAuthenticated: false });
       },
 
       updateUser: (updates) =>
@@ -67,6 +69,7 @@ export const useAuthStore = create<AuthState>()(
       version: 3,
       partialize: (state) => ({
         user: state.user,
+        token: state.token, // TOKEN AUTH: persist token
         isAuthenticated: state.isAuthenticated,
       }),
        // Skip hydration sur server
