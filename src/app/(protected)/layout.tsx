@@ -39,6 +39,11 @@ export default function ProtectedLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
+      // Rehydrate Zustand from localStorage first.
+      // skipHydration:true means in-memory state starts as { token: null }.
+      // Without this, setAuth(userData) causes persist to write { token: null }
+      // back to localStorage, wiping the token silently.
+      await useAuthStore.persist.rehydrate();
       try {
         const userData = await authApi.me();
         if (!user || user.id !== userData.id) {

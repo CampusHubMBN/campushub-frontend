@@ -20,13 +20,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
+      // Rehydrate Zustand from localStorage before any auth check
+      // (skipHydration: true means the store starts empty on every page load)
+      await useAuthStore.persist.rehydrate();
+
       try {
         const userData = await authApi.me();
         setAuth(userData);
       } catch (error) {
         console.error('Auth check failed:', error);
         logout();
-        // ✅ Redirect dans useEffect
         router.push('/login');
       } finally {
         setIsLoading(false);
