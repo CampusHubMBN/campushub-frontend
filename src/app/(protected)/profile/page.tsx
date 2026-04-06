@@ -77,53 +77,51 @@ export default function ProfilePage() {
       const result = await usersApi.uploadCv(user.id, cvFile);
       updateUserInfo({ cv_url: result.cv_url, profile_completion: result.profile_completion });
 
-      // 2 — Parse PDF text via NestJS
-      const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
-      const formData = new FormData();
-      formData.append('file', cvFile);
-      const parseRes = await fetch(`${realtimeUrl}/cv-matching/parse`, { method: 'POST', body: formData });
-
-      if (parseRes.ok) {
-        const { rawText } = await parseRes.json();
-
-        // 3 — Extract skills from raw text via NestJS
-        const analyzeRes = await fetch(`${realtimeUrl}/cv-matching/analyze`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawText }),
-        });
-
-        if (analyzeRes.ok) {
-          const { skills: extractedSkills } = await analyzeRes.json();
-
-          // 4 — Merge with existing manual skills (deduplicated, lowercase comparison)
-          const existing: string[] = user.info?.skills ?? [];
-          const existingLower = existing.map((s) => s.toLowerCase());
-          const newSkills = (extractedSkills as string[]).filter(
-            (s) => !existingLower.includes(s.toLowerCase()),
-          );
-          const mergedSkills = [...existing, ...newSkills];
-
-          // 5 — Patch profile with merged skills
-          await usersApi.updateUserInfo(user.id, { skills: mergedSkills });
-          updateUserInfo({ skills: mergedSkills });
-          queryClient.invalidateQueries({ queryKey: ['cv-match-scores', user.id] });
-
-          if (newSkills.length > 0) {
-            toast.success(`CV uploadé — ${newSkills.length} compétence(s) ajoutée(s) à votre profil`);
-          } else {
-            toast.success('CV uploadé avec succès !');
-          }
-        } else {
-          toast.success('CV uploadé avec succès !');
-        }
-      } else {
-        toast.success('CV uploadé avec succès !');
-      }
-
       setCvFile(null);
       if (cvPreviewUrl) { URL.revokeObjectURL(cvPreviewUrl); setCvPreviewUrl(null); }
       if (cvInputRef.current) cvInputRef.current.value = '';
+
+      // 2 — Try to extract skills via NestJS (optional — never blocks upload success)
+      try {
+        const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL || 'http://localhost:3001';
+        const formData = new FormData();
+        formData.append('file', cvFile);
+        const parseRes = await fetch(`${realtimeUrl}/cv-matching/parse`, { method: 'POST', body: formData });
+
+        if (parseRes.ok) {
+          const { rawText } = await parseRes.json();
+
+          const analyzeRes = await fetch(`${realtimeUrl}/cv-matching/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rawText }),
+          });
+
+          if (analyzeRes.ok) {
+            const { skills: extractedSkills } = await analyzeRes.json();
+
+            const existing: string[] = user.info?.skills ?? [];
+            const existingLower = existing.map((s) => s.toLowerCase());
+            const newSkills = (extractedSkills as string[]).filter(
+              (s) => !existingLower.includes(s.toLowerCase()),
+            );
+            const mergedSkills = [...existing, ...newSkills];
+
+            await usersApi.updateUserInfo(user.id, { skills: mergedSkills });
+            updateUserInfo({ skills: mergedSkills });
+            queryClient.invalidateQueries({ queryKey: ['cv-match-scores', user.id] });
+
+            if (newSkills.length > 0) {
+              toast.success(`CV uploadé — ${newSkills.length} compétence(s) ajoutée(s) à votre profil`);
+              return;
+            }
+          }
+        }
+      } catch {
+        // NestJS parsing unavailable — upload already succeeded
+      }
+
+      toast.success('CV uploadé avec succès !');
     } catch (error: any) {
       console.log('Error', error.response?.data?.message);
       toast.error(error.response?.data?.message || "Erreur lors de l'upload");
