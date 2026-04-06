@@ -19,7 +19,22 @@ export interface UpdateUserInfoRequest {
   campus?: string | null;
 }
 
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  role: string;
+  avatar_url: string | null;
+}
+
 export const usersApi = {
+  // Search users by name/email (for starting conversations)
+  searchUsers: async (q: string): Promise<UserSearchResult[]> => {
+    const response = await api.get<{ data: UserSearchResult[] }>('/users/search', {
+      params: { q },
+    });
+    return response.data.data;
+  },
+
   // Get user by ID
   getUser: async (id: string) => {
     const response = await api.get(`/users/${id}`);

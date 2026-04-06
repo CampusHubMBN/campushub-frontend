@@ -1,6 +1,7 @@
 // src/app/(protected)/chat/layout.tsx
 'use client';
 
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@apollo/client/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,9 +12,10 @@ import { storageUrl } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Plus } from 'lucide-react';
 import { usePresenceStore } from '@/store/presence.store';
 import type { ChatConversation } from '@/types/chat';
+import { NewConversationDialog } from '@/components/chat/NewConversationDialog';
 
 // ── Conversation list (left panel) ─────────────────────────────────────────
 
@@ -136,8 +138,9 @@ function ConversationList() {
 // ── Layout ─────────────────────────────────────────────────────────────────
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
-  const pathname       = usePathname();
-  const isInThread     = pathname !== '/chat';
+  const pathname           = usePathname();
+  const isInThread         = pathname !== '/chat';
+  const [newConvOpen, setNewConvOpen] = useState(false);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden bg-white">
@@ -149,10 +152,18 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         // Mobile: full width on /chat, hidden when in a thread
         isInThread ? 'hidden md:flex' : 'flex w-full',
       )}>
-        <div className="px-4 py-3.5 border-b border-campus-gray-100">
+        <div className="px-4 py-3.5 border-b border-campus-gray-100 flex items-center justify-between">
           <h2 className="text-base font-semibold text-campus-gray-900">Messages</h2>
+          <button
+            onClick={() => setNewConvOpen(true)}
+            className="h-7 w-7 rounded-full flex items-center justify-center text-campus-gray-500 hover:bg-campus-gray-100 hover:text-campus-blue transition-colors"
+            title="Nouvelle conversation"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
         <ConversationList />
+        <NewConversationDialog open={newConvOpen} onOpenChange={setNewConvOpen} />
       </div>
 
       {/* ── Thread panel ── */}
