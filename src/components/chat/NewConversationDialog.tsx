@@ -30,7 +30,7 @@ export function NewConversationDialog({ open, onOpenChange }: Props) {
   const [starting, setStarting] = useState<string | null>(null); // userId being opened
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [startConversation] = useMutation(START_CONVERSATION);
+  const [startConversation] = useMutation<{ startConversation: { id: string } }>(START_CONVERSATION);
 
   // Debounced search — waits 300ms after user stops typing before calling the API
   useEffect(() => {
